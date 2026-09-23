@@ -45,19 +45,19 @@
   <text x="580" y="234" text-anchor="middle" font-size="10" fill="#475569">+ история отказов/пропусков</text>
   <text x="580" y="256" text-anchor="middle" font-size="10" font-weight="600" fill="#166534">→ устойчиво к «однофакторной</text>
   <text x="580" y="272" text-anchor="middle" font-size="10" font-weight="600" fill="#166534">ловушке» жюри</text>
-  <text x="580" y="294" text-anchor="middle" font-size="10" fill="#94a3b8">11 тестов, включая ловушку из ТЗ</text>
+  <text x="580" y="294" text-anchor="middle" font-size="10" fill="#94a3b8">Регрессионные тесты и профили жюри</text>
   <line x1="420" y1="220" x2="480" y2="220" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
 
   <!-- explain.py -->
   <rect x="740" y="130" width="210" height="180" rx="10" fill="#fef2f2" stroke="#fca5a5" stroke-width="1.5"/>
   <text x="845" y="158" text-anchor="middle" font-size="13" font-weight="600" fill="#7f1d1d">explain.py</text>
-  <text x="845" y="180" text-anchor="middle" font-size="11" fill="#991b1b">build_rationale()</text>
+  <text x="845" y="180" text-anchor="middle" font-size="11" fill="#991b1b">build_rationale_async()</text>
   <text x="845" y="202" text-anchor="middle" font-size="10" fill="#475569">1. шаблон (всегда, kk/ru/en)</text>
   <text x="845" y="220" text-anchor="middle" font-size="10" fill="#475569">2. LLM agentic — опционально:</text>
   <text x="845" y="236" text-anchor="middle" font-size="10" fill="#475569">function calling,</text>
-  <text x="845" y="252" text-anchor="middle" font-size="10" fill="#475569">общий бюджет 8с/страница</text>
+  <text x="845" y="252" text-anchor="middle" font-size="10" fill="#475569">по кнопке, бюджет 8с/объяснение</text>
   <text x="845" y="274" text-anchor="middle" font-size="10" font-weight="600" fill="#991b1b">→ факты всегда из engine.py,</text>
-  <text x="845" y="290" text-anchor="middle" font-size="10" font-weight="600" fill="#991b1b">LLM их не придумывает</text>
+  <text x="845" y="290" text-anchor="middle" font-size="10" font-weight="600" fill="#991b1b">текст ИИ проверяется по фактам</text>
   <line x1="680" y1="220" x2="740" y2="220" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
 
   <!-- OpenAI optional -->
@@ -72,7 +72,7 @@
   <text x="1080" y="198" text-anchor="middle" font-size="11" fill="#6b21a8">FastAPI</text>
   <text x="1080" y="222" text-anchor="middle" font-size="10" fill="#475569">HTML-страницы</text>
   <text x="1080" y="238" text-anchor="middle" font-size="10" fill="#475569">(Jinja2 + Tailwind)</text>
-  <text x="1080" y="256" text-anchor="middle" font-size="10" fill="#475569">+ JSON API</text>
+  <text x="1080" y="256" text-anchor="middle" font-size="10" fill="#475569">JSON API, роли, CSRF</text>
   <text x="1080" y="272" text-anchor="middle" font-size="10" fill="#475569">i18n: kk/ru/en</text>
   <line x1="950" y1="220" x2="1000" y2="220" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
 

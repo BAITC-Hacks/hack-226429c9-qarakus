@@ -74,14 +74,15 @@ async def _parse_upload(
                 status_code=400,
                 detail="Файл профилей должен содержать список employees.json",
             )
-        required_employee_fields = {"employee_id", "full_name", "role", "grade", "skills"}
+        required_employee_fields = {"employee_id", "role", "grade", "skills"}
         employee_ids = set()
         for index, employee in enumerate(employees, 1):
             if not isinstance(employee, dict) or not required_employee_fields.issubset(employee):
                 raise HTTPException(
                     status_code=400, detail=f"Профиль {index}: нужны поля {sorted(required_employee_fields)}"
                 )
-            text_fields = required_employee_fields - {"skills"}
+            employee.setdefault("full_name", employee["employee_id"])
+            text_fields = (required_employee_fields - {"skills"}) | {"full_name"}
             if not all(isinstance(employee[field], str) and employee[field] for field in text_fields):
                 raise HTTPException(
                     status_code=400, detail=f"Профиль {index}: ID, имя, роль и грейд должны быть строками"

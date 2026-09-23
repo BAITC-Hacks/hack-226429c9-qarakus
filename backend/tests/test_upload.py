@@ -62,3 +62,13 @@ def test_valid_profiles_and_history_import_together(monkeypatch):
     assert asyncio.run(main._parse_upload(profiles, history)) == (1, 1)
     assert store.employees["TEST_UPLOAD"]["full_name"] == "Test Upload"
     assert store.history_for_employee("TEST_UPLOAD")[0]["record_id"].startswith("UPLOAD")
+
+
+def test_minimal_profile_from_spec_and_utf8_bom_are_supported(monkeypatch):
+    store = DataStore()
+    monkeypatch.setattr(main, "store", store)
+    profile = {"employee_id": "SPEC_MINIMAL", "role": "Backend Engineer", "grade": "Middle",
+               "skills": {"SK_SYSTEM_DESIGN": 2}}
+    profiles = upload("employees.json", "\ufeff" + json.dumps([profile]))
+    assert asyncio.run(main._parse_upload(profiles, None)) == (1, 0)
+    assert store.employees["SPEC_MINIMAL"]["full_name"] == "SPEC_MINIMAL"
