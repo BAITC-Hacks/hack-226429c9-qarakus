@@ -17,9 +17,24 @@ from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from . import engine
+from .i18n import resolve_lang, translate
 from .store import store
 
 import json as _json
+
+
+def _lang_for_request(request: Request, *extra_candidates: str | None) -> str:
+    """Приоритет: явный ?lang= в URL > доп. кандидаты (например, preferred_language
+    сотрудника) > сохранённый cookie > русский по умолчанию."""
+    return resolve_lang(request.query_params.get("lang"), *extra_candidates, request.cookies.get("lang"))
+
+
+def _render(request: Request, template_name: str, lang: str, context: dict, status_code: int = 200):
+    ctx = {"request": request, "lang": lang, "t": lambda key, **fmt: translate(lang, key, **fmt), **context}
+    response = templates.TemplateResponse(template_name, ctx, status_code=status_code)
+    if request.query_params.get("lang"):
+        response.set_cookie("lang", lang, max_age=60 * 60 * 24 * 30)
+    return response
 
 
 async def _parse_upload(
@@ -76,18 +91,16 @@ def _skill_name(skill_id: str) -> str:
 
 @app.get("/")
 def index(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request, "error": None})
+    lang = _lang_for_request(request)
+    return _render(request, "index.html", lang, {"error": None})
 
 
 @app.get("/login")
 def login(request: Request, employee_id: str):
     employee_id = employee_id.strip().upper()
+    lang = _lang_for_request(request)
     if employee_id not in store.employees:
-        return templates.TemplateResponse(
-            "index.html",
-            {"request": request, "error": f"Сотрудник «{employee_id}» не найден. Проверьте ID."},
-            status_code=404,
-        )
+        return _render(request, "index.html", lang, {"error": translate(lang, "not_found", id=employee_id)}, status_code=404)
     return RedirectResponse(url=f"/employee/{employee_id}", status_code=303)
 
 
@@ -95,12 +108,10 @@ def login(request: Request, employee_id: str):
 def employee_page(request: Request, employee_id: str):
     emp = store.employees.get(employee_id)
     if emp is None:
-        return templates.TemplateResponse(
-            "index.html",
-            {"request": request, "error": f"Сотрудник «{employee_id}» не найден. Проверьте ID."},
-            status_code=404,
-        )
+        lang = _lang_for_request(request)
+        return _render(request, "index.html", lang, {"error": translate(lang, "not_found", id=employee_id)}, status_code=404)
 
+    lang = _lang_for_request(request, emp.get("preferred_language"))
     result = engine.recommend(store, employee_id)
     history = sorted(store.history_for_employee(employee_id), key=lambda r: r["date"], reverse=True)
 
@@ -115,10 +126,11 @@ def employee_page(request: Request, employee_id: str):
             }
         )
 
-    return templates.TemplateResponse(
+    return _render(
+        request,
         "employee.html",
+        lang,
         {
-            "request": request,
             "emp": emp,
             "target_role": result["target_role"],
             "target_grade": result["target_grade"],
@@ -153,6 +165,7 @@ def complete_activity(employee_id: str, event_id: str):
 
 @app.get("/hr")
 def hr_page(request: Request, uploaded: int | None = None):
+    lang = _lang_for_request(request)
     overview = engine.hr_overview(store)
     lagging = [{**s, "skill_name": _skill_name(s["skill_id"])} for s in overview["top_lagging_skills"]]
     without_step = [store.employees[eid] for eid in overview["employees_without_step"] if eid in store.employees]
@@ -161,10 +174,11 @@ def hr_page(request: Request, uploaded: int | None = None):
         for eid, pct in overview["lowest_readiness"]
         if eid in store.employees
     ]
-    return templates.TemplateResponse(
+    return _render(
+        request,
         "hr.html",
+        lang,
         {
-            "request": request,
             "lagging": lagging,
             "without_step": without_step,
             "lowest_readiness": lowest_readiness,

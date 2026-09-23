@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="{{ lang }}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,10 +8,16 @@
 </head>
 <body class="bg-slate-50 text-slate-900 min-h-screen">
   <nav class="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between">
-    <a href="/" class="font-semibold text-lg">🧭 Career Quest</a>
+    <a href="/" class="font-semibold text-lg">🧭 {{ t('brand') }}</a>
     <div class="flex items-center gap-4">
-      <a href="/hr" class="text-sm text-slate-600 hover:text-slate-900">HR-панель</a>
-      <a href="/" class="text-sm text-slate-600 hover:text-slate-900">Сменить сотрудника</a>
+      <a href="/hr" class="text-sm text-slate-600 hover:text-slate-900">{{ t('nav_hr') }}</a>
+      <a href="/" class="text-sm text-slate-600 hover:text-slate-900">{{ t('nav_switch_employee') }}</a>
+      <div class="flex items-center gap-1 text-xs">
+        {% for code in ['ru', 'kk', 'en'] %}
+        <a href="{{ request.url.include_query_params(lang=code) }}"
+           class="px-1.5 py-0.5 rounded {{ 'bg-slate-900 text-white' if lang == code else 'text-slate-400 hover:text-slate-700' }}">{{ code|upper }}</a>
+        {% endfor %}
+      </div>
     </div>
   </nav>
   <main class="max-w-4xl mx-auto p-6">

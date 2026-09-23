@@ -1,17 +1,13 @@
 {% extends "base.html" %}
-{% block title %}Career Quest — вход{% endblock %}
+{% block title %}{{ t('index_title') }}{% endblock %}
 {% block content %}
-<h1 class="text-2xl font-bold mb-4">Career Quest</h1>
-<p class="text-slate-600 mb-6">
-  Упрощённая имитация входа: сотрудник вводит свой ID и видит только свой профиль —
-  публичного каталога чужих профилей нет (см. README, «Ограничения» и ТЗ п.9
-  «Приватность»). HR получает отдельный вход с агрегированным видом.
-</p>
+<h1 class="text-2xl font-bold mb-4">{{ t('index_title') }}</h1>
+<p class="text-slate-600 mb-6">{{ t('index_subtitle') }}</p>
 {% if error %}<p class="text-sm text-red-600 mb-3">{{ error }}</p>{% endif %}
 <form method="get" action="/login" class="flex gap-2 mb-3">
-  <input name="employee_id" placeholder="Ваш ID, например E0028" class="border border-slate-300 rounded px-3 py-2 flex-1" required>
-  <button class="bg-slate-900 text-white px-4 py-2 rounded hover:bg-slate-700">Войти</button>
+  <input name="employee_id" placeholder="{{ t('index_placeholder') }}" class="border border-slate-300 rounded px-3 py-2 flex-1" required>
+  <button class="bg-slate-900 text-white px-4 py-2 rounded hover:bg-slate-700">{{ t('index_login_btn') }}</button>
 </form>
-<p class="text-xs text-slate-400 mb-8">Демо для жюри: например E0028 (пример из самого ТЗ), E0001, E0100.</p>
-<a href="/hr" class="text-sm text-slate-600 underline">Войти как HR →</a>
+<p class="text-xs text-slate-400 mb-8">{{ t('index_demo_hint') }}</p>
+<a href="/hr" class="text-sm text-slate-600 underline">{{ t('index_hr_link') }}</a>
 {% endblock %}

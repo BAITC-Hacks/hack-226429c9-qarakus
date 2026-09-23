@@ -3,49 +3,46 @@
 {% block content %}
 <div class="mb-6">
   <h1 class="text-2xl font-bold">{{ emp.full_name }}</h1>
-  <div class="text-slate-600">{{ emp.employee_id }} · {{ emp.role }} · грейд {{ emp.grade }} · стаж {{ emp.tenure_months }} мес.</div>
+  <div class="text-slate-600">{{ emp.employee_id }} · {{ emp.role }} · {{ t('grade_label') }} {{ emp.grade }} · {{ t('tenure') }} {{ emp.tenure_months }} {{ t('months') }}</div>
   {% if emp.career_goal %}
-    <div class="text-sm text-slate-500 mt-1">Цель: {{ emp.career_goal.target_role }} / {{ emp.career_goal.target_grade }}</div>
+    <div class="text-sm text-slate-500 mt-1">{{ t('goal_set') }} {{ emp.career_goal.target_role }} / {{ emp.career_goal.target_grade }}</div>
   {% else %}
-    <div class="text-sm text-slate-500 mt-1">Цель не задана — считаем следующий грейд в текущей роли</div>
+    <div class="text-sm text-slate-500 mt-1">{{ t('goal_not_set') }}</div>
   {% endif %}
 </div>
 
 <section class="mb-8">
   <div class="flex items-center justify-between mb-1">
-    <h2 class="text-lg font-semibold">Готовность к грейду {{ target_grade }}</h2>
+    <h2 class="text-lg font-semibold">{{ t('readiness_title') }} {{ target_grade }}</h2>
     <span class="text-sm font-medium text-slate-700">{{ readiness_percent }}%</span>
   </div>
   <div class="w-full bg-slate-200 rounded-full h-2.5 mb-1">
     <div class="bg-emerald-500 h-2.5 rounded-full" style="width: {{ readiness_percent }}%"></div>
   </div>
-  <p class="text-xs text-slate-400">
-    Готовность = доля требований грейда {{ target_grade }}, которые уже выполнены
-    (навыков без разрыва / всего требуемых навыков). Как считаются сами разрывы — ниже.
-  </p>
+  <p class="text-xs text-slate-400">{{ t('readiness_caption', grade=target_grade) }}</p>
 </section>
 
 <section class="mb-8">
-  <h2 class="text-lg font-semibold mb-2">Разрывы по навыкам</h2>
+  <h2 class="text-lg font-semibold mb-2">{{ t('gaps_title') }}</h2>
   {% if gaps %}
   <div class="bg-white border border-slate-200 rounded-lg divide-y divide-slate-100">
     {% for g in gaps %}
     <div class="p-3 flex items-center justify-between">
       <div>
         <span class="font-medium">{{ g.skill_name }}</span>
-        {% if g.critical %}<span class="ml-2 text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded">критично для перехода</span>{% endif %}
+        {% if g.critical %}<span class="ml-2 text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded">{{ t('critical_badge') }}</span>{% endif %}
       </div>
-      <div class="text-sm text-slate-500">{{ g.current }} → {{ g.required }} <span class="text-slate-400">(разрыв {{ g.gap }})</span></div>
+      <div class="text-sm text-slate-500">{{ g.current }} → {{ g.required }} <span class="text-slate-400">({{ t('gap_label') }} {{ g.gap }})</span></div>
     </div>
     {% endfor %}
   </div>
   {% else %}
-  <p class="text-slate-600">Все требования грейда {{ target_grade }} выполнены — рекомендаций по разрывам нет.</p>
+  <p class="text-slate-600">{{ t('gaps_none', grade=target_grade) }}</p>
   {% endif %}
 </section>
 
 <section class="mb-8">
-  <h2 class="text-lg font-semibold mb-2">Рекомендованные следующие шаги</h2>
+  <h2 class="text-lg font-semibold mb-2">{{ t('steps_title') }}</h2>
   {% if steps %}
   <div class="space-y-4">
     {% for step in steps %}
@@ -56,25 +53,25 @@
           <div class="text-sm text-slate-500">{{ step.event.type }} · {{ step.event.format }} · {{ step.event.duration_hours }} ч</div>
         </div>
         <form method="post" action="/employee/{{ emp.employee_id }}/complete/{{ step.event.event_id }}">
-          <button class="bg-slate-900 text-white text-sm px-3 py-1.5 rounded hover:bg-slate-700">Отметить выполненным</button>
+          <button class="bg-slate-900 text-white text-sm px-3 py-1.5 rounded hover:bg-slate-700">{{ t('complete_btn') }}</button>
         </form>
       </div>
       <p class="text-sm text-slate-700 mt-3">{{ step.rationale.text }}</p>
-      <p class="text-xs text-slate-400 mt-1">источник обоснования: {{ 'LLM-агент (с function calling)' if step.rationale.source == 'llm-agentic' else 'детерминированный шаблон' }}</p>
+      <p class="text-xs text-slate-400 mt-1">{{ t('rationale_source_label') }} {{ t('rationale_source_llm') if step.rationale.source == 'llm-agentic' else t('rationale_source_template') }}</p>
     </div>
     {% endfor %}
   </div>
   {% else %}
-  <p class="text-slate-600">Подходящих добровольных активностей под текущие разрывы не найдено.</p>
+  <p class="text-slate-600">{{ t('steps_none') }}</p>
   {% endif %}
 </section>
 
 <section>
-  <h2 class="text-lg font-semibold mb-2">История участия</h2>
+  <h2 class="text-lg font-semibold mb-2">{{ t('history_title') }}</h2>
   <div class="bg-white border border-slate-200 rounded-lg overflow-x-auto">
     <table class="w-full text-sm">
       <thead class="bg-slate-100 text-left">
-        <tr><th class="p-2">Дата</th><th class="p-2">Активность</th><th class="p-2">Статус</th></tr>
+        <tr><th class="p-2">{{ t('history_date') }}</th><th class="p-2">{{ t('history_activity') }}</th><th class="p-2">{{ t('history_status') }}</th></tr>
       </thead>
       <tbody class="divide-y divide-slate-100">
         {% for r in history %}
