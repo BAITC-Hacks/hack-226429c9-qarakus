@@ -117,6 +117,11 @@ async def _llm_agentic_rationale(
 
         trace = []
         history_checked = set()
+        alternatives_checked = set()
+        alternatives_required = {
+            skill_id for skill_id, skill in skills_by_id.items()
+            if any(skill["history"].get(status, 0) for status in ("declined", "no_show", "dropped"))
+        }
 
         def call_tool(name: str, args: dict):
             s = skills_by_id.get(args.get("skill_id"))
@@ -126,6 +131,7 @@ async def _llm_agentic_rationale(
                 history_checked.add(s["skill_id"])
                 return s["history"]
             if name == "get_alternative_events":
+                alternatives_checked.add(s["skill_id"])
                 return s.get("alternative_events", [])
             return {"error": "unknown tool"}
 
@@ -144,6 +150,7 @@ async def _llm_agentic_rationale(
                     "Если были пропуски или отказы, вызови get_alternative_events и сравни доступные варианты. "
                     "Объясни три фактора: явно назови текущий и требуемый уровень навыка, критичность и историю. "
                     "Если сумма ВСЕХ счётчиков истории нулевая, скажи, что истории нет. "
+                    "Отсутствие записей не доказывает отсутствие опыта и не означает препятствий росту. "
                     "Если хотя бы один счётчик положителен, данные ЕСТЬ: точно перечисли завершения и пропуски. "
                     "Пропуски не означают отсутствие данных. Не делай выводов о мотивации, причинах отказов или личности. "
                     "Критичность относится к НАВЫКУ, а не к мероприятию: обучение добровольное, "
@@ -170,11 +177,17 @@ async def _llm_agentic_rationale(
                 remaining = deadline - time.monotonic()
                 if remaining <= 0.5:
                     return None
+                if history_checked != set(skills_by_id):
+                    tool_choice = "required"
+                elif alternatives_required - alternatives_checked:
+                    tool_choice = {"type": "function", "function": {"name": "get_alternative_events"}}
+                else:
+                    tool_choice = "auto"
                 resp = await client.chat.completions.create(
                     model=os.environ.get("OPENAI_MODEL", "gpt-4o-mini"),
                     messages=messages,
                     tools=tools,
-                    tool_choice="required" if not history_checked else "auto",
+                    tool_choice=tool_choice,
                     max_tokens=500,
                     timeout=min(remaining, 5.0),
                 )
@@ -196,7 +209,9 @@ async def _llm_agentic_rationale(
                         })
                     continue
                 content = (msg.content or "").strip()
-                if history_checked == set(skills_by_id) and content and resp.choices[0].finish_reason == "stop":
+                if (history_checked == set(skills_by_id)
+                        and alternatives_required <= alternatives_checked
+                        and content and resp.choices[0].finish_reason == "stop"):
                     return {"text": content, "tool_calls": trace}
                 return None
         return None
@@ -231,6 +246,8 @@ async def build_rationale_async(
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
         return result
+    if any(not any(skill["history"].values()) for skill in step["skills"]):
+        return {**result, "fallback_reason": "insufficient_history"}
     now = time.monotonic()
     cache_key = hashlib.sha256(json.dumps(
         [target_grade, step, lang, os.environ.get("OPENAI_MODEL", "gpt-4o-mini"), api_key], sort_keys=True

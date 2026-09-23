@@ -1,0 +1,51 @@
+{
+  "captured_at": "2026-09-23T12:33:07.120Z",
+  "kind": "Observed application responses, not an LLM quality benchmark",
+  "examples": [
+    {
+      "employee_id": "DEMO_TRAP",
+      "event_id": "EV_006",
+      "language": "ru",
+      "elapsed_ms": 61,
+      "http_status": 200,
+      "template_before_request": "System Design: сейчас 3, требуется 4 (Senior) — критический навык для перехода. истории пропусков по активностям этого навыка нет",
+      "response": {
+        "text": "System Design: сейчас 3, требуется 4 (Senior) — критический навык для перехода. истории пропусков по активностям этого навыка нет",
+        "source": "template",
+        "facts": "System Design: сейчас 3, требуется 4 (Senior) — критический навык для перехода. истории пропусков по активностям этого навыка нет",
+        "tool_calls": [],
+        "fallback_reason": "insufficient_history",
+        "tool_labels": []
+      },
+      "screenshot": "docs/screenshots/ai-critical-ru.png"
+    },
+    {
+      "employee_id": "E0005",
+      "event_id": "EV_007",
+      "language": "ru",
+      "elapsed_ms": 4537,
+      "http_status": 200,
+      "template_before_request": "System Design: сейчас 2, требуется 4 (Senior) — критический навык для перехода. по истории: 1 завершено, 1 пропущено/отклонено по активностям этого навыка",
+      "response": {
+        "text": "Ваша текущая степень навыка \"System Design\" составляет 2, в то время как для перехода на уровень Senior требуется 4. В вашей истории есть 1 завершение и 1 пропуск по этому навыку. Рекомендуемое мероприятие \"Architecture Review Circle\" поможет вам развить критически важные навыки, необходимые для достижения следующего уровня. В дополнение, вы также можете рассмотреть альтернативное мероприятие \"System Design Fundamentals\", которое доступно в онлайн-формате.",
+        "source": "llm-agentic",
+        "facts": "System Design: сейчас 2, требуется 4 (Senior) — критический навык для перехода. по истории: 1 завершено, 1 пропущено/отклонено по активностям этого навыка",
+        "tool_calls": [
+          {
+            "tool": "get_skill_history",
+            "skill_id": "SK_SYSTEM_DESIGN"
+          },
+          {
+            "tool": "get_alternative_events",
+            "skill_id": "SK_SYSTEM_DESIGN"
+          }
+        ],
+        "tool_labels": [
+          "Проверена история: System Design",
+          "Проверены альтернативы: System Design"
+        ]
+      },
+      "screenshot": "docs/screenshots/ai-alternatives-ru.png"
+    }
+  ]
+}

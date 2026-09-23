@@ -134,6 +134,32 @@ def test_completed_event_not_recommended_again():
     assert target_event not in after_event_ids or target_event == "EV_036"
 
 
+def test_history_changes_event_choice_without_changing_skill_gap():
+    store = make_store()
+    target = store.role_profiles[("Backend Engineer", "Senior")]
+    employee = {
+        "employee_id": "HISTORY_CHOICE", "full_name": "History Choice",
+        "role": "Backend Engineer", "grade": "Middle",
+        "skills": {**target["required_skills"], "SK_SYSTEM_DESIGN": 3},
+    }
+    store.add_employees([employee])
+    event = {
+        **store.events["EV_006"], "event_id": "CHOICE_A",
+        "develops_skills": [{"skill_id": "SK_SYSTEM_DESIGN", "gain": 1, "max_level": 4}],
+    }
+    store.events = {"CHOICE_A": event, "CHOICE_B": {**event, "event_id": "CHOICE_B"}}
+    before = engine.recommend(store, employee["employee_id"])
+    assert before["steps"][0]["event"]["event_id"] == "CHOICE_A"
+    store.add_history([{
+        "employee_id": employee["employee_id"], "event_id": "CHOICE_A",
+        "date": "2026-09-01", "status": "declined",
+    }])
+    after = engine.recommend(store, employee["employee_id"])
+    assert after["gaps"] == before["gaps"]
+    assert after["steps"][0]["event"]["event_id"] == "CHOICE_B"
+    assert after["steps"][0]["skills"][0]["history"]["declined"] == 1
+
+
 def test_skill_gain_capped_at_max_level():
     store = make_store()
     employee_id = "E0001"

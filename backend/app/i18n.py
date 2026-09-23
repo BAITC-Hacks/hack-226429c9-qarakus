@@ -29,7 +29,7 @@ _T: dict[str, dict[str, str]] = {
     "ai_explain": {"ru": "Объяснить с помощью ИИ", "kk": "ЖИ көмегімен түсіндіру", "en": "Explain with AI"},
     "ai_loading": {"ru": "Проверяем историю и варианты…", "kk": "Тарих пен нұсқалар тексерілуде…", "en": "Checking history and alternatives…"},
     "ai_done": {"ru": "ИИ-объяснение готово", "kk": "ЖИ түсіндірмесі дайын", "en": "AI explanation ready"},
-    "ai_fallback": {"ru": "ИИ сейчас недоступен. Объяснение по проверенным фактам сохранено.", "kk": "ЖИ қазір қолжетімсіз. Тексерілген деректерге негізделген түсіндірме сақталды.", "en": "AI is unavailable right now. The explanation based on verified facts is still available."},
+    "ai_fallback": {"ru": "Использовано базовое объяснение по проверенным фактам — без предположений ИИ.", "kk": "ЖИ болжамдарынсыз, тексерілген деректерге негізделген негізгі түсіндірме қолданылды.", "en": "Using the baseline explanation based on verified facts, without AI assumptions."},
     "ai_no_key": {"ru": "Базовое объяснение доступно без внешних сервисов.", "kk": "Негізгі түсіндірме сыртқы сервистерсіз қолжетімді.", "en": "The baseline explanation works without external services."},
     "get_skill_history": {"ru": "Проверена история", "kk": "Тарих тексерілді", "en": "History checked"},
     "get_alternative_events": {"ru": "Проверены альтернативы", "kk": "Балама нұсқалар тексерілді", "en": "Alternatives checked"},

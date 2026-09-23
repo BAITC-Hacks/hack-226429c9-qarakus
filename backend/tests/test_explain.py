@@ -133,6 +133,9 @@ def test_successful_tools_are_traced_cached_and_invalidated_by_changed_facts(mon
     tool_message = ChatCompletionMessage(role="assistant", content=None, tool_calls=[{
         "id": "history_call", "type": "function",
         "function": {"name": "get_skill_history", "arguments": '{"skill_id":"SK_X"}'},
+    }, {
+        "id": "alternatives_call", "type": "function",
+        "function": {"name": "get_alternative_events", "arguments": '{"skill_id":"SK_X"}'},
     }])
     final_message = ChatCompletionMessage(role="assistant", content="Grounded explanation")
 
@@ -143,7 +146,10 @@ def test_successful_tools_are_traced_cached_and_invalidated_by_changed_facts(mon
     fake_client(monkeypatch, create)
     answer = build_rationale("Senior", _STEP, "en", "")
     assert answer["source"] == "llm-agentic"
-    assert answer["tool_calls"] == [{"tool": "get_skill_history", "skill_id": "SK_X"}]
+    assert answer["tool_calls"] == [
+        {"tool": "get_skill_history", "skill_id": "SK_X"},
+        {"tool": "get_alternative_events", "skill_id": "SK_X"},
+    ]
     assert create.call_count == 2
     assert build_rationale("Senior", _STEP, "en", "")["text"] == answer["text"]
     assert create.call_count == 2
@@ -155,3 +161,54 @@ def test_successful_tools_are_traced_cached_and_invalidated_by_changed_facts(mon
 def test_page_template_does_not_call_provider_even_when_configured(monkeypatch):
     fake_client(monkeypatch, AsyncMock(side_effect=AssertionError("unexpected API request")))
     assert build_rationale("Senior", _STEP, "ru", "", use_llm=False)["source"] == "template"
+
+
+def test_ai_must_check_alternatives_when_history_contains_avoidance(monkeypatch):
+    from openai.types.chat import ChatCompletionMessage
+
+    history_message = ChatCompletionMessage(role="assistant", content=None, tool_calls=[{
+        "id": "history_only", "type": "function",
+        "function": {"name": "get_skill_history", "arguments": '{"skill_id":"SK_X"}'},
+    }])
+    final_message = ChatCompletionMessage(role="assistant", content="Unchecked recommendation")
+    create = AsyncMock(side_effect=[
+        SimpleNamespace(choices=[SimpleNamespace(message=message, finish_reason="stop")])
+        for message in (history_message, final_message)
+    ])
+    fake_client(monkeypatch, create)
+    answer = build_rationale("Senior", _STEP, "en", "")
+    assert answer["source"] == "template"
+    assert answer["tool_calls"] == []
+    assert create.call_args_list[1].kwargs["tool_choice"] == {
+        "type": "function", "function": {"name": "get_alternative_events"},
+    }
+
+
+def test_ai_does_not_require_alternatives_without_avoidance(monkeypatch):
+    from openai.types.chat import ChatCompletionMessage
+
+    step = {**_STEP, "skills": [{**_STEP["skills"][0],
+                              "history": {"completed": 1, "declined": 0, "no_show": 0, "dropped": 0}}]}
+    history_message = ChatCompletionMessage(role="assistant", content=None, tool_calls=[{
+        "id": "history_only", "type": "function",
+        "function": {"name": "get_skill_history", "arguments": '{"skill_id":"SK_X"}'},
+    }])
+    final_message = ChatCompletionMessage(role="assistant", content="History checked")
+    create = AsyncMock(side_effect=[
+        SimpleNamespace(choices=[SimpleNamespace(message=message, finish_reason="stop")])
+        for message in (history_message, final_message)
+    ])
+    fake_client(monkeypatch, create)
+    assert build_rationale("Senior", step, "en", "")["source"] == "llm-agentic"
+
+
+def test_absent_history_uses_facts_without_speculative_ai_inferences(monkeypatch):
+    create = AsyncMock(side_effect=AssertionError("unexpected API request"))
+    fake_client(monkeypatch, create)
+    step = {**_STEP, "skills": [{**_STEP["skills"][0],
+                              "history": {"completed": 0, "declined": 0, "no_show": 0, "dropped": 0}}]}
+    answer = build_rationale("Senior", step, "en", "")
+    assert answer["source"] == "template"
+    assert answer["fallback_reason"] == "insufficient_history"
+    assert "now 1" in answer["facts"]
+    create.assert_not_called()
