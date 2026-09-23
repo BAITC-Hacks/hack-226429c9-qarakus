@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Установить ruff
+        run: pip install ruff
+      - name: Проверить стиль
+        run: cd backend && ruff check app tests
+
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Установить зависимости
+        run: pip install -r backend/requirements.txt
+      - name: Прогнать тесты движка
+        run: cd backend && pytest tests/ -v
+
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Собрать и поднять по инструкции из README
+        run: |
+          docker compose build
+          docker compose up -d
+          sleep 3
+      - name: Проверить /health
+        run: curl -sf http://localhost:8000/health
+      - name: Погасить
+        if: always()
+        run: docker compose down
