@@ -182,7 +182,8 @@ def _llm_agentic_rationale(
                 continue
             return (msg.content or "").strip() or None
         return None
-    except Exception:
+    except Exception:  # noqa: BLE001 — намеренно широко: сеть/таймаут/авторизация/SDK
+        # не должны ронять рекомендацию, а должны падать в детерминированный шаблон.
         return None
 
 

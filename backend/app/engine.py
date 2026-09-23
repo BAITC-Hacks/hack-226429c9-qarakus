@@ -133,8 +133,9 @@ def recommend(store: DataStore, employee_id: str, top_n: int = 3) -> dict:
     target_role, target_grade, profile = target_for_employee(store, emp)
     gaps = skill_gaps(emp, profile)
 
+    avoided_statuses = ("declined", "no_show", "dropped")
     avoided_events = {
-        r["event_id"] for r in store.history_for_employee(employee_id) if r["status"] in ("declined", "no_show", "dropped")
+        r["event_id"] for r in store.history_for_employee(employee_id) if r["status"] in avoided_statuses
     }
 
     chosen: dict[str, dict] = {}
@@ -147,7 +148,12 @@ def recommend(store: DataStore, employee_id: str, top_n: int = 3) -> dict:
             continue
         history = history_stats_for_skill(store, employee_id, skill_id)
 
-        def sort_key(ev: dict) -> tuple:
+        def sort_key(ev: dict, skill_id: str = skill_id) -> tuple:
+            # skill_id захвачен как default-аргумент, а не через замыкание: иначе
+            # при позднем связывании к моменту вызова sort() использовалось бы
+            # значение skill_id из последней итерации внешнего цикла, а не из той,
+            # для которой sort_key был создан (это здесь не проявлялось как баг,
+            # так как sort() вызывается сразу же, но паттерн хрупкий — ruff B023).
             gain = next((d["gain"] for d in ev["develops_skills"] if d["skill_id"] == skill_id), 0)
             was_avoided = ev["event_id"] in avoided_events
             return (was_avoided, -gain)
@@ -155,7 +161,9 @@ def recommend(store: DataStore, employee_id: str, top_n: int = 3) -> dict:
         candidates.sort(key=sort_key)
         best = candidates[0]
         alternatives = [
-            {"event_id": c["event_id"], "title": c["title"]} for c in candidates[1:3] if c["event_id"] != best["event_id"]
+            {"event_id": c["event_id"], "title": c["title"]}
+            for c in candidates[1:3]
+            if c["event_id"] != best["event_id"]
         ]
         entry = chosen.setdefault(best["event_id"], {"event": best, "skills": []})
         entry["skills"].append(
@@ -197,7 +205,9 @@ def hr_overview(store: DataStore) -> dict:
     employees_without_step: list[str] = []
     readiness_by_employee: dict[str, int] = {}
 
-    for employee_id, emp in store.employees.items():
+    risk_signals: list[dict] = []
+
+    for employee_id in store.employees:
         result = recommend(store, employee_id)
         for gap in result["gaps"]:
             skill_gap_count[gap["skill_id"]] = skill_gap_count.get(gap["skill_id"], 0) + 1
@@ -206,7 +216,12 @@ def hr_overview(store: DataStore) -> dict:
             employees_without_step.append(employee_id)
         readiness_by_employee[employee_id] = result["readiness_percent"]
 
+        risk = engagement_risk(store, employee_id, result["readiness_percent"])
+        if risk is not None:
+            risk_signals.append(risk)
+
     lowest_readiness = sorted(readiness_by_employee.items(), key=lambda kv: kv[1])[:10]
+    risk_signals.sort(key=lambda r: r["avoidance_rate"], reverse=True)
 
     top_lagging_skills = sorted(
         (
@@ -221,10 +236,11 @@ def hr_overview(store: DataStore) -> dict:
         reverse=True,
     )[:15]
 
+    empty_bucket = {"completed": 0, "declined": 0, "no_show": 0, "dropped": 0, "other": 0}
     participation: dict[str, dict[str, int]] = {}
     for row in store.history:
         event_id = row["event_id"]
-        bucket = participation.setdefault(event_id, {"completed": 0, "declined": 0, "no_show": 0, "dropped": 0, "other": 0})
+        bucket = participation.setdefault(event_id, dict(empty_bucket))
         status = row["status"]
         bucket[status if status in bucket else "other"] += 1
 
@@ -234,4 +250,37 @@ def hr_overview(store: DataStore) -> dict:
         "participation_by_event": participation,
         "total_employees": len(store.employees),
         "lowest_readiness": lowest_readiness,
+        "engagement_risk": risk_signals[:10],
     }
+
+
+RISK_MIN_HISTORY = 3
+RISK_AVOIDANCE_RATE = 0.4
+RISK_READINESS_PERCENT = 30
+
+
+def engagement_risk(store: DataStore, employee_id: str, readiness_percent: int) -> dict | None:
+    """Эвристический сигнал риска снижения вовлечённости (опциональный пункт ТЗ
+    «прогноз риска оттока»).
+
+    Важная честная оговорка (см. README, «Ограничения»): это НЕ прогноз оттока
+    в строгом смысле — в датасете нет зарплаты, удовлетворённости, рынка труда.
+    Это узкий, объяснимый эвристический сигнал на тех данных, что есть: высокая
+    доля отказов/пропусков активностей развития (сигнал отключённости от процесса
+    добровольного развития — прямая связь с «Учесть: добровольность» из ТЗ) в
+    сочетании с низкой готовностью к следующему грейду (стагнация). Порог по
+    минимальной истории — чтобы не помечать сотрудников, про которых просто мало
+    данных (1-2 записи не говорят ни о чём)."""
+    rows = store.history_for_employee(employee_id)
+    if len(rows) < RISK_MIN_HISTORY:
+        return None
+    avoided = sum(1 for r in rows if r["status"] in ("declined", "no_show", "dropped"))
+    avoidance_rate = avoided / len(rows)
+    if avoidance_rate >= RISK_AVOIDANCE_RATE and readiness_percent <= RISK_READINESS_PERCENT:
+        return {
+            "employee_id": employee_id,
+            "avoidance_rate": round(avoidance_rate, 2),
+            "readiness_percent": readiness_percent,
+            "history_count": len(rows),
+        }
+    return None

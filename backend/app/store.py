@@ -16,7 +16,6 @@ import csv
 import json
 import threading
 from pathlib import Path
-from typing import Any
 
 SEED_DIR = Path(__file__).parent / "data" / "seed"
 

@@ -47,6 +47,23 @@
 </section>
 
 <section class="mb-8">
+  <h2 class="text-lg font-semibold mb-2">{{ t('hr_risk_title') }} ({{ engagement_risk|length }})</h2>
+  <p class="text-xs text-slate-500 mb-2">{{ t('hr_risk_caption') }}</p>
+  {% if engagement_risk %}
+  <div class="bg-white border border-slate-200 rounded-lg divide-y divide-slate-100">
+    {% for e in engagement_risk %}
+    <a href="/employee/{{ e.employee_id }}" class="p-3 flex items-center justify-between hover:bg-slate-50">
+      <div>{{ e.full_name }} <span class="text-slate-400 text-sm">{{ e.employee_id }} · {{ e.role }} · {{ e.grade }}</span></div>
+      <div class="text-sm text-slate-500">{{ t('hr_risk_avoidance') }}: {{ (e.avoidance_rate * 100)|round|int }}% · {{ e.readiness_percent }}%</div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="text-slate-600">{{ t('hr_risk_none') }}</p>
+  {% endif %}
+</section>
+
+<section class="mb-8">
   <h2 class="text-lg font-semibold mb-2">{{ t('hr_without_step_title') }} ({{ without_step|length }})</h2>
   {% if without_step %}
   <div class="bg-white border border-slate-200 rounded-lg divide-y divide-slate-100">

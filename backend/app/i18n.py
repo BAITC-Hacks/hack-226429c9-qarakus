@@ -131,6 +131,22 @@ _T: dict[str, dict[str, str]] = {
         "kk": "Барлық қызметкерлерде кемінде бір ұсынылған қадам бар.",
         "en": "Every employee has at least one recommended step.",
     },
+    "hr_risk_title": {
+        "ru": "Риск снижения вовлечённости",
+        "kk": "Тартылымдылықтың төмендеу қаупі",
+        "en": "Engagement risk",
+    },
+    "hr_risk_caption": {
+        "ru": "Эвристика, не строгий прогноз оттока (нет данных о зарплате/удовлетворённости): часто отказывается/пропускает + готовность к грейду стагнирует.",
+        "kk": "Эвристика, қатаң кету болжамы емес (жалақы/қанағаттану деректері жоқ): жиі бас тартады/өткізіп алады + грейдке дайындық тоқтап тұр.",
+        "en": "Heuristic, not a strict attrition forecast (no salary/satisfaction data): frequent declines/no-shows combined with stagnant grade readiness.",
+    },
+    "hr_risk_none": {
+        "ru": "Ни у кого нет одновременно высокой доли отказов и низкой готовности.",
+        "kk": "Ешкімде бас тартулардың жоғары үлесі мен төмен дайындық бір мезгілде жоқ.",
+        "en": "No one currently has both a high avoidance rate and low readiness.",
+    },
+    "hr_risk_avoidance": {"ru": "доля отказов/пропусков", "kk": "бас тарту/өткізіп алу үлесі", "en": "avoidance rate"},
     "hr_participation_title": {"ru": "Участие по активностям", "kk": "Іс-шаралар бойынша қатысу", "en": "Participation by activity"},
     "hr_col_activity": {"ru": "Активность", "kk": "Іс-шара", "en": "Activity"},
     "hr_col_completed": {"ru": "Завершено", "kk": "Аяқталды", "en": "Completed"},

@@ -170,6 +170,50 @@ def test_skill_never_decreases_even_if_event_max_level_is_lower():
     assert emp["skills"][dev["skill_id"]] == dev["max_level"] + 5, "навык не должен понижаться"
 
 
+def test_engagement_risk_flags_high_avoidance_and_low_readiness():
+    store = make_store()
+    store.add_employees(
+        [
+            {
+                "employee_id": "TEST_RISK",
+                "full_name": "Risk Case",
+                "department": "Backend Development",
+                "role": "Backend Engineer",
+                "grade": "Junior",
+                "manager_id": None,
+                "hire_date": "2023-01-01",
+                "tenure_months": 24,
+                "work_format": "office",
+                "preferred_language": "ru",
+                "career_goal": None,
+                "skills": {},  # почти все навыки на нуле — низкая готовность гарантирована
+                "last_review_date": "2026-09-01",
+            }
+        ]
+    )
+    store.add_history(
+        [
+            {"employee_id": "TEST_RISK", "event_id": "EV_005", "date": "2025-01-01", "status": "declined"},
+            {"employee_id": "TEST_RISK", "event_id": "EV_009", "date": "2025-02-01", "status": "no_show"},
+            {"employee_id": "TEST_RISK", "event_id": "EV_010", "date": "2025-03-01", "status": "dropped"},
+            {"employee_id": "TEST_RISK", "event_id": "EV_038", "date": "2025-04-01", "status": "completed"},
+        ]
+    )
+    result = engine.recommend(store, "TEST_RISK")
+    risk = engine.engagement_risk(store, "TEST_RISK", result["readiness_percent"])
+    assert risk is not None
+    assert risk["avoidance_rate"] == 0.75
+
+
+def test_engagement_risk_none_with_too_little_history():
+    store = make_store()
+    # у обычного сотрудника из сида истории мало или готовность нормальная —
+    # хотя бы не должно падать с ошибкой на реальных данных
+    for employee_id in list(store.employees)[:5]:
+        risk = engine.engagement_risk(store, employee_id, 100)  # искусственно высокая готовность
+        assert risk is None, "при высокой готовности риск не должен срабатывать"
+
+
 def test_next_grade_respects_order():
     store = make_store()
     assert engine.next_grade(store.role_profiles, "Backend Engineer", "Junior") == "Middle"

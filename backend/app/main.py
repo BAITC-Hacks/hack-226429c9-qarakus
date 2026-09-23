@@ -10,17 +10,16 @@ from __future__ import annotations
 
 import csv
 import io
+import json as _json
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Request, UploadFile, File, Form
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from . import engine
 from .i18n import resolve_lang, translate
 from .store import store
-
-import json as _json
 
 
 def _lang_for_request(request: Request, *extra_candidates: str | None) -> str:
@@ -50,7 +49,7 @@ async def _parse_upload(
         try:
             raw = _json.loads((await employees_file.read()).decode("utf-8"))
         except (UnicodeDecodeError, _json.JSONDecodeError) as exc:
-            raise HTTPException(status_code=400, detail=f"Файл профилей — не валидный JSON: {exc}")
+            raise HTTPException(status_code=400, detail=f"Файл профилей — не валидный JSON: {exc}") from exc
         rows = raw["employees"] if isinstance(raw, dict) and "employees" in raw else raw
         if not isinstance(rows, list) or not all(isinstance(r, dict) and "employee_id" in r for r in rows):
             raise HTTPException(
@@ -64,7 +63,7 @@ async def _parse_upload(
             text = (await history_file.read()).decode("utf-8")
             rows = list(csv.DictReader(io.StringIO(text)))
         except UnicodeDecodeError as exc:
-            raise HTTPException(status_code=400, detail=f"Файл истории — не валидный CSV: {exc}")
+            raise HTTPException(status_code=400, detail=f"Файл истории — не валидный CSV: {exc}") from exc
         required_columns = {"employee_id", "event_id", "status"}
         if rows and not required_columns.issubset(rows[0].keys()):
             raise HTTPException(
@@ -100,7 +99,8 @@ def login(request: Request, employee_id: str):
     employee_id = employee_id.strip().upper()
     lang = _lang_for_request(request)
     if employee_id not in store.employees:
-        return _render(request, "index.html", lang, {"error": translate(lang, "not_found", id=employee_id)}, status_code=404)
+        error = {"error": translate(lang, "not_found", id=employee_id)}
+        return _render(request, "index.html", lang, error, status_code=404)
     return RedirectResponse(url=f"/employee/{employee_id}", status_code=303)
 
 
@@ -109,7 +109,8 @@ def employee_page(request: Request, employee_id: str):
     emp = store.employees.get(employee_id)
     if emp is None:
         lang = _lang_for_request(request)
-        return _render(request, "index.html", lang, {"error": translate(lang, "not_found", id=employee_id)}, status_code=404)
+        error = {"error": translate(lang, "not_found", id=employee_id)}
+        return _render(request, "index.html", lang, error, status_code=404)
 
     lang = _lang_for_request(request, emp.get("preferred_language"))
     result = engine.recommend(store, employee_id)
@@ -162,9 +163,9 @@ def employee_page(request: Request, employee_id: str):
 def _rationale_for(emp: dict, target_grade: str, step: dict, deadline: float | None = None) -> dict:
     from .explain import build_rationale
 
-    return build_rationale(
-        target_grade, step, emp.get("preferred_language", "ru"), emp.get("full_name", emp["employee_id"]), deadline=deadline
-    )
+    lang = emp.get("preferred_language", "ru")
+    name = emp.get("full_name", emp["employee_id"])
+    return build_rationale(target_grade, step, lang, name, deadline=deadline)
 
 
 @app.post("/employee/{employee_id}/complete/{event_id}")
@@ -176,7 +177,8 @@ def complete_activity(employee_id: str, event_id: str):
     # ДО применения gain, чтобы после показать явное «было → стало», а не просто новые
     # цифры без объяснения, что именно изменилось.
     event = store.events[event_id]
-    before = {d["skill_id"]: store.employees[employee_id]["skills"].get(d["skill_id"], 0) for d in event.get("develops_skills", [])}
+    current_skills = store.employees[employee_id]["skills"]
+    before = {d["skill_id"]: current_skills.get(d["skill_id"], 0) for d in event.get("develops_skills", [])}
     store.complete_activity(employee_id, event_id)
     after = {sid: store.employees[employee_id]["skills"].get(sid, 0) for sid in before}
     changed = ",".join(f"{sid}:{before[sid]}:{after[sid]}" for sid in before if after[sid] != before[sid])
@@ -203,6 +205,11 @@ def hr_page(request: Request, uploaded: int | None = None):
         for eid, pct in overview["lowest_readiness"]
         if eid in store.employees
     ]
+    engagement_risk = [
+        {**store.employees[r["employee_id"]], **r}
+        for r in overview["engagement_risk"]
+        if r["employee_id"] in store.employees
+    ]
     return _render(
         request,
         "hr.html",
@@ -211,6 +218,7 @@ def hr_page(request: Request, uploaded: int | None = None):
             "lagging": lagging,
             "without_step": without_step,
             "lowest_readiness": lowest_readiness,
+            "engagement_risk": engagement_risk,
             "participation": overview["participation_by_event"],
             "events": store.events,
             "total_employees": overview["total_employees"],
@@ -255,7 +263,7 @@ def api_complete(employee_id: str, event_id: str):
     try:
         record = store.complete_activity(employee_id, event_id)
     except KeyError:
-        raise HTTPException(status_code=404, detail="not found")
+        raise HTTPException(status_code=404, detail="not found") from None
     return {"record": record, "profile": engine.recommend(store, employee_id)}
 
 

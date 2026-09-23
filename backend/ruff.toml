@@ -1,0 +1,20 @@
+line-length = 120
+target-version = "py313"
+
+[lint]
+select = ["E", "F", "I", "B", "UP", "PERF", "BLE", "DTZ"]
+ignore = [
+  # FastAPI-идиома: File(default=None)/Form(...) как значение по умолчанию — так и
+  # задуман Depends-стиль FastAPI, это не "вызов функции в default", а часть API.
+  "B008",
+  # Даты в датасете (activity_history.csv, employees.json) — наивные календарные
+  # даты без таймзоны по самой схеме ТЗ ("date": "2025-01-10"). Требовать tz-aware
+  # datetime здесь означало бы придумывать таймзону, которой нет в данных.
+  "DTZ011",
+]
+
+[lint.per-file-ignores]
+# Словари переводов (i18n.py) и языковых меток (explain.py) — длинные строки нужны,
+# чтобы держать rus/kk/en-варианты одного ключа на одной строке для сравнения.
+"app/i18n.py" = ["E501"]
+"app/explain.py" = ["E501"]
