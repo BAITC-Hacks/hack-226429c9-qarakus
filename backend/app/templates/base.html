@@ -15,12 +15,15 @@
     .eyebrow { color: #237347; font-size: .72rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
     .action-button { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: .65rem 1rem; border-radius: 12px; background: #11663e; color: #fff; font-weight: 700; line-height: 1.2; transition: background-color .2s, transform .2s; }
     .action-button:hover { background: #0d4f31; transform: translateY(-1px); }
+    .secondary-button { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: .65rem 1rem; border: 1px solid #b9d8c3; border-radius: 12px; background: #fff; color: #11663e; font-weight: 700; line-height: 1.2; transition: background-color .2s; }
+    .secondary-button:hover { background: #f0faf2; }
     .action-button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visible { outline: 3px solid #f2b544; outline-offset: 3px; }
+    .secondary-button:focus-visible { outline: 3px solid #f2b544; outline-offset: 3px; }
     .soft-link { color: #11663e; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
     .metric-number { color: #153c2a; font-size: clamp(1.7rem, 3vw, 2.5rem); font-weight: 800; letter-spacing: -.04em; line-height: 1; }
     .reveal { animation: rise-in .35s ease-out both; }
     @keyframes rise-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-    @media (prefers-reduced-motion: reduce) { .reveal { animation: none; } .action-button { transition: none; } .action-button:hover { transform: none; } }
+    @media (prefers-reduced-motion: reduce) { .reveal { animation: none; } .action-button, .secondary-button { transition: none; } .action-button:hover { transform: none; } }
   </style>
 </head>
 <body class="text-slate-900 min-h-screen antialiased">

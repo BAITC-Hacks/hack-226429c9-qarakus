@@ -169,17 +169,21 @@ def employee_page(request: Request, employee_id: str):
     deadline = _time.monotonic() + 8.0
 
     steps_view = []
+    today = datetime.date.today().isoformat()
     for step in result["steps"]:
         named_step = {
             **step,
             "skills": [{**skill, "skill_name": _skill_name(skill["skill_id"])} for skill in step["skills"]],
         }
         rationale = _rationale_for(emp, result["target_grade"], named_step, deadline)
+        sessions = sorted(date for date in step["event"].get("upcoming_sessions", []) if date >= today)
         steps_view.append(
             {
                 "event": step["event"],
                 "skills": named_step["skills"],
                 "rationale": rationale,
+                "sessions": sessions,
+                "next_session": sessions[0] if sessions else None,
             }
         )
 

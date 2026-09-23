@@ -122,6 +122,25 @@ _T: dict[str, dict[str, str]] = {
     "event_format_online": {"ru": "Онлайн", "kk": "Онлайн", "en": "Online"},
     "event_format_offline": {"ru": "Очно", "kk": "Офлайн", "en": "In person"},
     "event_format_self_paced": {"ru": "В своём темпе", "kk": "Өз қарқыныңызбен", "en": "Self paced"},
+    "activity_details": {"ru": "Подробнее о мероприятии", "kk": "Іс-шара туралы толығырақ", "en": "About this activity"},
+    "activity_description": {"ru": "Что вас ждёт", "kk": "Не күтіп тұр", "en": "What to expect"},
+    "next_session": {"ru": "Ближайшая сессия", "kk": "Ең жақын сессия", "en": "Next session"},
+    "session_dates": {"ru": "Доступные даты", "kk": "Қолжетімді күндер", "en": "Available dates"},
+    "session_self_paced": {
+        "ru": "Можно начать в своём темпе",
+        "kk": "Өз қарқыныңызбен бастауға болады",
+        "en": "Start at your own pace",
+    },
+    "session_unavailable": {
+        "ru": "Новых сессий пока нет",
+        "kk": "Жаңа сессиялар әзірге жоқ",
+        "en": "No upcoming sessions yet",
+    },
+    "complete_prompt": {
+        "ru": "Уже прошли активность?",
+        "kk": "Іс-шарадан өтіп қойдыңыз ба?",
+        "en": "Already completed this activity?",
+    },
     "steps_none": {
         "ru": "Подходящих добровольных активностей под текущие разрывы не найдено.",
         "kk": "Ағымдағы олқылықтарға сәйкес ерікті іс-шаралар табылмады.",
