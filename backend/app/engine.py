@@ -183,14 +183,23 @@ def recommend(store: DataStore, employee_id: str, top_n: int = 3) -> dict:
         "gaps": gaps,
         "steps": steps,
         "readiness_percent": readiness_percent(profile, gaps),
+        "profile_found": profile is not None,
     }
 
 
-def readiness_percent(profile: dict | None, gaps: list[dict]) -> int:
+def readiness_percent(profile: dict | None, gaps: list[dict]) -> int | None:
     """Доля требований целевого грейда, уже выполненных сотрудником, 0–100.
     Простая, проверяемая метрика «насколько близко к следующему грейду» — использована
-    и в интерфейсе сотрудника (прогресс-бар), и в HR-обзоре (кто дальше всех/ближе всех)."""
-    if not profile or not profile.get("required_skills"):
+    и в интерфейсе сотрудника (прогресс-бар), и в HR-обзоре (кто дальше всех/ближе всех).
+
+    Возвращает None, если профиль (role, grade) не найден в справочнике role_profiles —
+    это НЕ то же самое, что «все требования выполнены» (100%). Раньше эти два случая
+    были неразличимы (оба давали 100%), что на проверочном профиле жюри с нестандартной
+    ролью/грейдом молча показало бы ложную «полную готовность» вместо честного
+    «недостаточно данных» (см. review, п.1)."""
+    if profile is None:
+        return None
+    if not profile.get("required_skills"):
         return 100
     total = len(profile["required_skills"])
     unmet = len(gaps)
@@ -204,6 +213,7 @@ def hr_overview(store: DataStore) -> dict:
     skill_gap_sum: dict[str, float] = {}
     employees_without_step: list[str] = []
     readiness_by_employee: dict[str, int] = {}
+    employees_unknown_data: list[str] = []
 
     risk_signals: list[dict] = []
 
@@ -214,9 +224,17 @@ def hr_overview(store: DataStore) -> dict:
             skill_gap_sum[gap["skill_id"]] = skill_gap_sum.get(gap["skill_id"], 0) + gap["gap"]
         if not result["steps"]:
             employees_without_step.append(employee_id)
-        readiness_by_employee[employee_id] = result["readiness_percent"]
 
-        risk = engagement_risk(store, employee_id, result["readiness_percent"])
+        readiness = result["readiness_percent"]
+        if readiness is None:
+            # role/grade сотрудника не найдены в role_profiles (нестандартный
+            # проверочный профиль жюри или опечатка) — не смешиваем это с "100%
+            # готов", ведём отдельным списком, а не участвуем в ранжировании.
+            employees_unknown_data.append(employee_id)
+            continue
+        readiness_by_employee[employee_id] = readiness
+
+        risk = engagement_risk(store, employee_id, readiness)
         if risk is not None:
             risk_signals.append(risk)
 
@@ -251,6 +269,7 @@ def hr_overview(store: DataStore) -> dict:
         "total_employees": len(store.employees),
         "lowest_readiness": lowest_readiness,
         "engagement_risk": risk_signals[:10],
+        "employees_unknown_data": employees_unknown_data,
     }
 
 
@@ -259,7 +278,7 @@ RISK_AVOIDANCE_RATE = 0.4
 RISK_READINESS_PERCENT = 30
 
 
-def engagement_risk(store: DataStore, employee_id: str, readiness_percent: int) -> dict | None:
+def engagement_risk(store: DataStore, employee_id: str, readiness_percent: int | None) -> dict | None:
     """Эвристический сигнал риска снижения вовлечённости (опциональный пункт ТЗ
     «прогноз риска оттока»).
 
@@ -271,6 +290,8 @@ def engagement_risk(store: DataStore, employee_id: str, readiness_percent: int) 
     сочетании с низкой готовностью к следующему грейду (стагнация). Порог по
     минимальной истории — чтобы не помечать сотрудников, про которых просто мало
     данных (1-2 записи не говорят ни о чём)."""
+    if readiness_percent is None:
+        return None  # роль/грейд не найдены — риск по неопределённой готовности не считаем
     rows = store.history_for_employee(employee_id)
     if len(rows) < RISK_MIN_HISTORY:
         return None

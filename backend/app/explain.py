@@ -15,14 +15,17 @@ import os
 
 _LANG_LABELS = {
     "ru": {"current": "сейчас", "required": "требуется", "critical": "критический навык для перехода",
+           "not_critical": "не критичен для перехода, но входит в требования грейда",
            "no_history": "истории пропусков по активностям этого навыка нет",
            "history": "по истории: {completed} завершено, {avoided} пропущено/отклонено по активностям этого навыка",
            "avoided_event": "внимание: именно это мероприятие сотрудник уже пропускал/отклонял ранее — стоит предложить альтернативный формат"},
     "kk": {"current": "қазір", "required": "қажет", "critical": "ауысу үшін маңызды дағды",
+           "not_critical": "ауысу үшін маңызды емес, бірақ грейд талаптарына кіреді",
            "no_history": "бұл дағды бойынша өткізіп алулар тарихы жоқ",
            "history": "тарих бойынша: {completed} аяқталды, {avoided} өткізіп алынды/бас тартылды",
            "avoided_event": "назар аударыңыз: қызметкер дәл осы іс-шараны бұрын өткізіп алған/бас тартқан — балама формат ұсынған жөн"},
     "en": {"current": "now", "required": "required", "critical": "critical skill for promotion",
+           "not_critical": "not critical for promotion, but part of the grade requirements",
            "no_history": "no history of skipping activities for this skill",
            "history": "history: {completed} completed, {avoided} skipped/declined for this skill",
            "avoided_event": "note: the employee already skipped/declined this exact event before — consider an alternative format"},
@@ -36,8 +39,10 @@ def _template_rationale(target_grade: str, step: dict, lang: str = "ru") -> str:
         hist = s["history"]
         avoided = hist["declined"] + hist["no_show"] + hist["dropped"]
         bit = f"{s['skill_id']}: {labels['current']} {s['current']}, {labels['required']} {s['required']} ({target_grade})"
-        if s["critical"]:
-            bit += f" — {labels['critical']}"
+        # Критичность называем ЯВНО в обоих случаях (а не молчим, когда non-critical) —
+        # иначе объяснение неявно недосчитывает до трёх факторов ТЗ, если конкретно
+        # у этого шага критичность=False (см. review, п.2).
+        bit += f" — {labels['critical'] if s['critical'] else labels['not_critical']}"
         bit += ". " + (
             labels["history"].format(completed=hist["completed"], avoided=avoided) if avoided or hist["completed"]
             else labels["no_history"]
@@ -126,7 +131,7 @@ def _llm_agentic_rationale(
         lang_name = {"ru": "русском", "kk": "казахском", "en": "английском"}.get(lang, "русском")
         skills_summary = "; ".join(
             f"{sid}: сейчас {s['current']}, требуется {s['required']} для {target_grade}"
-            + (" (критично для перехода)" if s["critical"] else "")
+            + (" (критично для перехода)" if s["critical"] else " (не критично, но входит в требования)")
             for sid, s in skills_by_id.items()
         )
         messages: list = [

@@ -63,6 +63,18 @@
   {% endif %}
 </section>
 
+{% if unknown_data %}
+<section class="mb-8 bg-amber-50 border border-amber-200 rounded-lg p-4">
+  <h2 class="text-lg font-semibold mb-1">{{ t('hr_unknown_data_title') }} ({{ unknown_data|length }})</h2>
+  <p class="text-xs text-amber-800 mb-2">{{ t('hr_unknown_data_caption') }}</p>
+  <ul class="text-sm text-amber-900 list-disc list-inside">
+    {% for e in unknown_data %}
+    <li><a href="/employee/{{ e.employee_id }}" class="underline">{{ e.full_name }} ({{ e.employee_id }} · {{ e.role }} · {{ e.grade }})</a></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
 <section class="mb-8">
   <h2 class="text-lg font-semibold mb-2">{{ t('hr_without_step_title') }} ({{ without_step|length }})</h2>
   {% if without_step %}

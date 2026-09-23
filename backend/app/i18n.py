@@ -65,6 +65,17 @@ _T: dict[str, dict[str, str]] = {
         "en": "All requirements for grade {grade} are met — no gap-based recommendations.",
     },
     "critical_badge": {"ru": "критично для перехода", "kk": "ауысу үшін маңызды", "en": "critical for promotion"},
+    "not_enough_data": {
+        "ru": "Недостаточно данных: роль «{role}» и/или грейд «{grade}» не найдены в справочнике грейдов "
+        "(role_profiles). Готовность и разрывы не могут быть посчитаны — проверьте, что эти значения "
+        "совпадают со справочником skills.json.",
+        "kk": "Деректер жеткіліксіз: «{role}» рөлі және/немесе «{grade}» грейді грейд анықтамалығында "
+        "(role_profiles) табылмады. Дайындық пен олқылықтарды есептеу мүмкін емес — skills.json "
+        "анықтамалығымен сәйкестігін тексеріңіз.",
+        "en": "Not enough data: role \"{role}\" and/or grade \"{grade}\" were not found in the grade "
+        "reference (role_profiles). Readiness and gaps cannot be computed — check that these values "
+        "match the skills.json reference.",
+    },
     "gap_label": {"ru": "разрыв", "kk": "олқылық", "en": "gap"},
     "steps_title": {"ru": "Рекомендованные следующие шаги", "kk": "Ұсынылған келесі қадамдар", "en": "Recommended next steps"},
     "steps_none": {
@@ -147,6 +158,16 @@ _T: dict[str, dict[str, str]] = {
         "en": "No one currently has both a high avoidance rate and low readiness.",
     },
     "hr_risk_avoidance": {"ru": "доля отказов/пропусков", "kk": "бас тарту/өткізіп алу үлесі", "en": "avoidance rate"},
+    "hr_unknown_data_title": {
+        "ru": "Роль/грейд не найдены в справочнике",
+        "kk": "Рөл/грейд анықтамалықтан табылмады",
+        "en": "Role/grade not found in reference",
+    },
+    "hr_unknown_data_caption": {
+        "ru": "Готовность и разрывы не посчитаны честно — не путаем это с «100% готов».",
+        "kk": "Дайындық пен олқылықтар есептелмеді — мұны «100% дайын» дегенмен шатастырмаймыз.",
+        "en": "Readiness and gaps could not be computed — this is not the same as \"100% ready\".",
+    },
     "hr_participation_title": {"ru": "Участие по активностям", "kk": "Іс-шаралар бойынша қатысу", "en": "Participation by activity"},
     "hr_col_activity": {"ru": "Активность", "kk": "Іс-шара", "en": "Activity"},
     "hr_col_completed": {"ru": "Завершено", "kk": "Аяқталды", "en": "Completed"},

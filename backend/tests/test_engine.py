@@ -151,7 +151,9 @@ def test_readiness_percent_matches_gap_count():
     assert engine.readiness_percent(profile, gaps) == 25
 
     assert engine.readiness_percent(profile, []) == 100
-    assert engine.readiness_percent(None, []) == 100
+    # profile=None означает "роль/грейд не найдены", а не "все требования выполнены" —
+    # это НЕ 100%, это None (см. test_unknown_role_gives_none_readiness_not_false_100_percent).
+    assert engine.readiness_percent(None, []) is None
 
 
 def test_skill_never_decreases_even_if_event_max_level_is_lower():
@@ -212,6 +214,65 @@ def test_engagement_risk_none_with_too_little_history():
     for employee_id in list(store.employees)[:5]:
         risk = engine.engagement_risk(store, employee_id, 100)  # искусственно высокая готовность
         assert risk is None, "при высокой готовности риск не должен срабатывать"
+
+
+def test_unknown_role_gives_none_readiness_not_false_100_percent():
+    """Регрессия (review, п.1): раньше неизвестная роль/грейд (профиль не найден в
+    role_profiles) молча давал readiness_percent=100 — неотличимо от «все требования
+    выполнены». Это опасно именно на проверочных профилях жюри: нестандартная
+    роль/грейд должна честно сигналить «недостаточно данных», а не «полностью готов»."""
+    store = make_store()
+    store.add_employees(
+        [
+            {
+                "employee_id": "TEST_UNKNOWN_ROLE",
+                "full_name": "Unknown Role",
+                "department": "Unknown",
+                "role": "Space Pirate",  # роли нет в role_profiles
+                "grade": "Middle",
+                "manager_id": None,
+                "hire_date": "2023-01-01",
+                "tenure_months": 12,
+                "work_format": "office",
+                "preferred_language": "ru",
+                "career_goal": None,
+                "skills": {},
+                "last_review_date": "2026-09-01",
+            }
+        ]
+    )
+    result = engine.recommend(store, "TEST_UNKNOWN_ROLE")
+    assert result["profile_found"] is False
+    assert result["readiness_percent"] is None
+    assert result["gaps"] == []
+    assert result["steps"] == []
+
+
+def test_hr_overview_buckets_unknown_role_separately_and_does_not_crash():
+    store = make_store()
+    store.add_employees(
+        [
+            {
+                "employee_id": "TEST_UNKNOWN_ROLE2",
+                "full_name": "Unknown Role 2",
+                "department": "Unknown",
+                "role": "Space Pirate",
+                "grade": "Middle",
+                "manager_id": None,
+                "hire_date": "2023-01-01",
+                "tenure_months": 12,
+                "work_format": "office",
+                "preferred_language": "ru",
+                "career_goal": None,
+                "skills": {},
+                "last_review_date": "2026-09-01",
+            }
+        ]
+    )
+    overview = engine.hr_overview(store)  # не должно бросить TypeError на сортировке None
+    assert "TEST_UNKNOWN_ROLE2" in overview["employees_unknown_data"]
+    lowest_ids = [eid for eid, _ in overview["lowest_readiness"]]
+    assert "TEST_UNKNOWN_ROLE2" not in lowest_ids
 
 
 def test_next_grade_respects_order():

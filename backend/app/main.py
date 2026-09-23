@@ -210,6 +210,7 @@ def hr_page(request: Request, uploaded: int | None = None):
         for r in overview["engagement_risk"]
         if r["employee_id"] in store.employees
     ]
+    unknown_data = [store.employees[eid] for eid in overview["employees_unknown_data"] if eid in store.employees]
     return _render(
         request,
         "hr.html",
@@ -219,6 +220,7 @@ def hr_page(request: Request, uploaded: int | None = None):
             "without_step": without_step,
             "lowest_readiness": lowest_readiness,
             "engagement_risk": engagement_risk,
+            "unknown_data": unknown_data,
             "participation": overview["participation_by_event"],
             "events": store.events,
             "total_employees": overview["total_employees"],
