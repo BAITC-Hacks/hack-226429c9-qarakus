@@ -2,102 +2,134 @@
 {% block title %}{{ emp.full_name }} — Career Quest{% endblock %}
 {% block content %}
 {% if changed %}
-<div class="mb-6 bg-emerald-50 border border-emerald-200 rounded-lg p-4">
-  <p class="text-sm font-medium text-emerald-800 mb-1">{{ t('changed_banner_title') }}</p>
-  <ul class="text-sm text-emerald-700 list-disc list-inside">
-    {% for c in changed %}<li>{{ c.skill_name }}: {{ c.before }} → {{ c.after }}</li>{% endfor %}
+<div class="reveal mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 sm:p-5" role="status">
+  <p class="font-bold text-emerald-900 mb-2">{{ t('changed_banner_title') }}</p>
+  <ul class="text-sm text-emerald-800 space-y-1">
+    {% for change in changed %}<li>{{ change.skill_name }}: {{ change.before }} → {{ change.after }}</li>{% endfor %}
   </ul>
 </div>
 {% endif %}
-<div class="mb-6">
-  <h1 class="text-2xl font-bold">{{ emp.full_name }}</h1>
-  <div class="text-slate-600">{{ emp.employee_id }} · {{ emp.role }} · {{ t('grade_label') }} {{ emp.grade }} · {{ t('tenure') }} {{ emp.tenure_months }} {{ t('months') }}</div>
-  {% if emp.career_goal %}
-    <div class="text-sm text-slate-500 mt-1">{{ t('goal_set') }} {{ emp.career_goal.target_role }} / {{ emp.career_goal.target_grade }}</div>
-  {% else %}
-    <div class="text-sm text-slate-500 mt-1">{{ t('goal_not_set') }}</div>
-  {% endif %}
-</div>
 
-<section class="mb-8">
-  {% if readiness_percent is none %}
-  <div class="bg-amber-50 border border-amber-200 rounded-lg p-4">
-    <h2 class="text-lg font-semibold text-amber-900 mb-1">{{ t('readiness_title') }} {{ target_grade }}</h2>
-    <p class="text-sm text-amber-800">{{ t('not_enough_data', role=emp.role, grade=target_grade) }}</p>
-  </div>
-  {% else %}
-  <div class="flex items-center justify-between mb-1">
-    <h2 class="text-lg font-semibold">{{ t('readiness_title') }} {{ target_grade }}</h2>
-    <span class="text-sm font-medium text-slate-700">{{ readiness_percent }}%</span>
-  </div>
-  <div class="w-full bg-slate-200 rounded-full h-2.5 mb-1">
-    <div class="bg-emerald-500 h-2.5 rounded-full" style="width: {{ readiness_percent }}%"></div>
-  </div>
-  <p class="text-xs text-slate-400">{{ t('readiness_caption', grade=target_grade) }}</p>
-  {% endif %}
-</section>
-
-<section class="mb-8">
-  <h2 class="text-lg font-semibold mb-2">{{ t('gaps_title') }}</h2>
-  {% if gaps %}
-  <div class="bg-white border border-slate-200 rounded-lg divide-y divide-slate-100">
-    {% for g in gaps %}
-    <div class="p-3 flex items-center justify-between">
-      <div>
-        <span class="font-medium">{{ g.skill_name }}</span>
-        {% if g.critical %}<span class="ml-2 text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded">{{ t('critical_badge') }}</span>{% endif %}
-      </div>
-      <div class="text-sm text-slate-500">{{ g.current }} → {{ g.required }} <span class="text-slate-400">({{ t('gap_label') }} {{ g.gap }})</span></div>
+<section class="hero-surface p-5 sm:p-8 mb-8">
+  <div class="grid gap-7 md:grid-cols-[minmax(0,1fr)_240px] md:items-center">
+    <div>
+      <p class="eyebrow mb-3">{{ t('brand') }} · {{ emp.employee_id }}</p>
+      <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-emerald-950 mb-2">{{ emp.full_name }}</h1>
+      <p class="text-slate-700">{{ emp.role }} · {{ t('grade_label') }} {{ emp.grade }}{% if emp.tenure_months is defined %} · {{ t('tenure') }} {{ emp.tenure_months }} {{ t('months') }}{% endif %}</p>
+      <p class="text-sm text-slate-600 mt-3">
+        {% if emp.career_goal %}
+          {{ t('goal_set') }} <strong>{{ emp.career_goal.target_role }} / {{ emp.career_goal.target_grade }}</strong>
+        {% else %}
+          {{ t('goal_not_set') }}
+        {% endif %}
+      </p>
     </div>
-    {% endfor %}
+    <div class="rounded-2xl bg-white/80 border border-emerald-100 p-5">
+      <p class="text-sm font-semibold text-slate-600 mb-2">{{ t('readiness_title') }} {{ target_grade }}</p>
+      {% if readiness_percent is none %}
+        <p class="text-sm text-amber-900">{{ t('not_enough_data', role=emp.role, grade=target_grade) }}</p>
+      {% else %}
+        <p class="metric-number mb-3">{{ readiness_percent }}%</p>
+        <div class="h-2.5 rounded-full bg-emerald-100 overflow-hidden" role="progressbar" aria-label="{{ t('readiness_title') }} {{ target_grade }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ readiness_percent }}">
+          <div class="h-full rounded-full bg-emerald-600" style="width: {{ readiness_percent }}%"></div>
+        </div>
+      {% endif %}
+    </div>
   </div>
-  {% else %}
-  <p class="text-slate-600">{{ t('gaps_none', grade=target_grade) }}</p>
-  {% endif %}
 </section>
 
-<section class="mb-8">
-  <h2 class="text-lg font-semibold mb-2">{{ t('steps_title') }}</h2>
+<section class="mb-9" id="next-steps">
+  <div class="mb-4">
+    <p class="eyebrow mb-1">{{ target_role }} · {{ target_grade }}</p>
+    <h2 class="text-2xl font-extrabold tracking-tight text-emerald-950">{{ t('steps_title') }}</h2>
+    <p class="text-sm text-slate-600 mt-1">{{ t('steps_intro') }}</p>
+  </div>
   {% if steps %}
   <div class="space-y-4">
     {% for step in steps %}
-    <div class="bg-white border border-slate-200 rounded-lg p-4">
-      <div class="flex items-start justify-between gap-4">
-        <div>
-          <div class="font-medium">{{ step.event.title }}</div>
-          <div class="text-sm text-slate-500">{{ step.event.type }} · {{ step.event.format }} · {{ step.event.duration_hours }} ч</div>
+    <article class="surface reveal p-5 sm:p-6" style="animation-delay: {{ loop.index0 * 70 }}ms">
+      <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
+        <div class="min-w-0">
+          <p class="eyebrow mb-2">{{ t('step_number', number=loop.index) }}</p>
+          <h3 class="text-xl font-bold tracking-tight text-slate-950">{{ step.event.title }}</h3>
+          <p class="text-sm text-slate-600 mt-1">{{ t('event_type_' ~ step.event.type) }} · {{ t('event_format_' ~ step.event.format) }} · {{ step.event.duration_hours }} {{ t('duration_hours') }}</p>
         </div>
         <form method="post" action="/employee/{{ emp.employee_id }}/complete/{{ step.event.event_id }}">
-          <button class="bg-slate-900 text-white text-sm px-3 py-1.5 rounded hover:bg-slate-700">{{ t('complete_btn') }}</button>
+          <button class="action-button w-full sm:w-auto">{{ t('complete_btn') }}</button>
         </form>
       </div>
-      <p class="text-sm text-slate-700 mt-3">{{ step.rationale.text }}</p>
-      <p class="text-xs text-slate-400 mt-1">{{ t('rationale_source_label') }} {{ t('rationale_source_llm') if step.rationale.source == 'llm-agentic' else t('rationale_source_template') }}</p>
-    </div>
+      <div class="space-y-2">
+        {% for skill in step.skills %}
+        {% set avoided = skill.history.declined + skill.history.no_show + skill.history.dropped %}
+        <div class="grid gap-3 sm:grid-cols-3 rounded-xl bg-emerald-50/60 border border-emerald-100 p-4 text-sm">
+          <div><p class="text-xs font-bold text-emerald-800 mb-1">{{ t('factor_skill') }}</p><p class="font-semibold text-slate-900">{{ skill.skill_name }}</p><p class="text-slate-600">{{ skill.current }} → {{ skill.required }} · {{ t('gap_label') }} {{ skill.gap }}</p></div>
+          <div><p class="text-xs font-bold text-emerald-800 mb-1">{{ t('factor_priority') }}</p><p class="text-slate-800">{{ t('critical_badge') if skill.critical else t('factor_not_critical') }}</p></div>
+          <div><p class="text-xs font-bold text-emerald-800 mb-1">{{ t('factor_history') }}</p><p class="text-slate-800">{{ skill.history.completed }} {{ t('factor_completed') }} · {{ avoided }} {{ t('factor_avoided') }}</p>{% if skill.was_avoided_before %}<p class="text-amber-800 font-semibold mt-1">{{ t('factor_avoided_event') }}</p>{% endif %}</div>
+        </div>
+        {% endfor %}
+      </div>
+      <details class="mt-4 text-sm">
+        <summary class="soft-link cursor-pointer">{{ t('rationale_details') }}</summary>
+        <p class="text-slate-700 mt-3 leading-relaxed">{{ step.rationale.text }}</p>
+        <p class="text-xs text-slate-500 mt-2">{{ t('rationale_source_label') }} {{ t('rationale_source_llm') if step.rationale.source == 'llm-agentic' else t('rationale_source_template') }}</p>
+      </details>
+    </article>
     {% endfor %}
   </div>
   {% else %}
-  <p class="text-slate-600">{{ t('steps_none') }}</p>
+  <div class="surface p-5 text-slate-700">{{ t('steps_none') }}</div>
   {% endif %}
 </section>
 
-<section>
-  <h2 class="text-lg font-semibold mb-2">{{ t('history_title') }}</h2>
-  <div class="bg-white border border-slate-200 rounded-lg overflow-x-auto">
-    <table class="w-full text-sm">
-      <thead class="bg-slate-100 text-left">
-        <tr><th class="p-2">{{ t('history_date') }}</th><th class="p-2">{{ t('history_activity') }}</th><th class="p-2">{{ t('history_status') }}</th></tr>
-      </thead>
-      <tbody class="divide-y divide-slate-100">
-        {% for r in history %}
-        <tr>
-          <td class="p-2">{{ r.date }}</td>
-          <td class="p-2">{{ events[r.event_id].title if r.event_id in events else r.event_id }}</td>
-          <td class="p-2">{{ r.status }}</td>
-        </tr>
+<section class="mb-9" id="skill-gaps">
+  <h2 class="text-xl font-bold text-emerald-950 mb-3">{{ t('gaps_title') }}{% if gaps %} <span class="text-sm font-semibold text-slate-500">({{ gaps|length }})</span>{% endif %}</h2>
+  {% if gaps %}
+  <div class="surface overflow-hidden divide-y divide-slate-100">
+    {% for gap in gaps[:4] %}
+    <div class="px-4 py-3 flex flex-wrap items-center justify-between gap-2">
+      <div><span class="font-semibold">{{ gap.skill_name }}</span>{% if gap.critical %}<span class="ml-2 text-xs rounded-full bg-amber-100 text-amber-900 px-2 py-1">{{ t('critical_badge') }}</span>{% endif %}</div>
+      <div class="text-sm text-slate-600">{{ gap.current }} → {{ gap.required }} · {{ t('gap_label') }} {{ gap.gap }}</div>
+    </div>
+    {% endfor %}
+    {% if gaps|length > 4 %}
+    <details class="group">
+      <summary class="px-4 py-3 soft-link cursor-pointer">{{ t('gaps_show_all') }} ({{ gaps|length }})</summary>
+      <div class="divide-y divide-slate-100 border-t border-slate-100">
+        {% for gap in gaps[4:] %}
+        <div class="px-4 py-3 flex flex-wrap items-center justify-between gap-2">
+          <div><span class="font-semibold">{{ gap.skill_name }}</span>{% if gap.critical %}<span class="ml-2 text-xs rounded-full bg-amber-100 text-amber-900 px-2 py-1">{{ t('critical_badge') }}</span>{% endif %}</div>
+          <div class="text-sm text-slate-600">{{ gap.current }} → {{ gap.required }} · {{ t('gap_label') }} {{ gap.gap }}</div>
+        </div>
         {% endfor %}
-      </tbody>
-    </table>
+      </div>
+    </details>
+    {% endif %}
   </div>
+  {% else %}
+  <div class="surface p-5 text-slate-700">{{ t('not_enough_data', role=emp.role, grade=target_grade) if readiness_percent is none else t('gaps_none', grade=target_grade) }}</div>
+  {% endif %}
+  {% if readiness_percent is not none %}<p class="text-xs text-slate-500 mt-3">{{ t('readiness_caption', grade=target_grade) }}</p>{% endif %}
+</section>
+
+<section>
+  <details class="surface overflow-hidden">
+    <summary class="cursor-pointer px-5 py-4 font-bold text-emerald-950">{{ t('history_title') }} ({{ history|length }})</summary>
+    <div class="border-t border-slate-100 overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-50 text-left text-slate-600">
+          <tr><th class="p-3">{{ t('history_date') }}</th><th class="p-3">{{ t('history_activity') }}</th><th class="p-3">{{ t('history_status') }}</th></tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for record in history %}
+          <tr>
+            <td class="p-3 whitespace-nowrap">{{ record.date }}</td>
+            <td class="p-3">{{ events[record.event_id].title if record.event_id in events else record.event_id }}</td>
+            <td class="p-3">{{ record.status }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </details>
 </section>
 {% endblock %}

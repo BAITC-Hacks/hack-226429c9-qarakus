@@ -1,13 +1,29 @@
 {% extends "base.html" %}
 {% block title %}{{ t('index_title') }}{% endblock %}
 {% block content %}
-<h1 class="text-2xl font-bold mb-4">{{ t('index_title') }}</h1>
-<p class="text-slate-600 mb-6">{{ t('index_subtitle') }}</p>
-{% if error %}<p class="text-sm text-red-600 mb-3">{{ error }}</p>{% endif %}
-<form method="get" action="/login" class="flex gap-2 mb-3">
-  <input name="employee_id" placeholder="{{ t('index_placeholder') }}" class="border border-slate-300 rounded px-3 py-2 flex-1" required>
-  <button class="bg-slate-900 text-white px-4 py-2 rounded hover:bg-slate-700">{{ t('index_login_btn') }}</button>
-</form>
-<p class="text-xs text-slate-400 mb-8">{{ t('index_demo_hint') }}</p>
-<a href="/hr" class="text-sm text-slate-600 underline">{{ t('index_hr_link') }}</a>
+<section class="hero-surface overflow-hidden p-6 sm:p-10 md:p-14 mt-4">
+  <div class="grid gap-10 lg:grid-cols-[minmax(0,1.3fr)_minmax(280px,.7fr)] lg:items-center">
+    <div>
+      <p class="eyebrow mb-4">{{ t('index_eyebrow') }}</p>
+      <h1 class="text-4xl sm:text-5xl font-extrabold leading-tight tracking-tight text-emerald-950 max-w-2xl">{{ t('index_headline') }}</h1>
+      <p class="text-slate-700 text-lg leading-relaxed mt-5 max-w-xl">{{ t('index_subtitle') }}</p>
+      <div class="mt-8 max-w-xl">
+        {% if error %}<p class="text-sm text-red-700 font-semibold mb-3" role="alert">{{ error }}</p>{% endif %}
+        <form method="get" action="/login" class="flex flex-col sm:flex-row gap-3">
+          <input name="employee_id" aria-label="{{ t('index_placeholder') }}" placeholder="{{ t('index_placeholder') }}" class="min-w-0 flex-1 rounded-xl border border-emerald-200 bg-white px-4 py-3" required>
+          <button class="action-button">{{ t('index_login_btn') }} →</button>
+        </form>
+        <p class="text-xs text-slate-600 mt-3">{{ t('index_demo_hint') }}</p>
+      </div>
+    </div>
+    <div class="surface p-5 sm:p-6" aria-hidden="true">
+      <div class="space-y-3">
+        <div class="rounded-xl bg-emerald-50 border border-emerald-100 p-4"><span class="eyebrow">01</span><p class="font-bold text-emerald-950 mt-1">{{ t('index_step_profile') }}</p></div>
+        <div class="rounded-xl bg-emerald-100 border border-emerald-200 p-4"><span class="eyebrow">02</span><p class="font-bold text-emerald-950 mt-1">{{ t('index_step_gaps') }}</p></div>
+        <div class="rounded-xl bg-emerald-800 p-4"><span class="text-xs font-extrabold tracking-widest text-emerald-200">03</span><p class="font-bold text-white mt-1">{{ t('index_step_action') }} ↗</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+<p class="mt-6 text-center"><a href="/hr" class="soft-link text-sm">{{ t('index_hr_link') }}</a></p>
 {% endblock %}
