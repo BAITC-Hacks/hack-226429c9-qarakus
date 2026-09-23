@@ -1,14 +1,16 @@
 {% extends "base.html" %}
-{% block title %}Career Quest — выбор сотрудника{% endblock %}
+{% block title %}Career Quest — вход{% endblock %}
 {% block content %}
-<h1 class="text-2xl font-bold mb-4">Выберите сотрудника</h1>
-<p class="text-slate-600 mb-6">Упрощённая имитация входа: в реальном продукте сотрудник видит только свой профиль.</p>
-<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-  {% for e in employees %}
-  <a href="/employee/{{ e.employee_id }}" class="block bg-white border border-slate-200 rounded-lg p-4 hover:border-slate-400 transition">
-    <div class="font-medium">{{ e.full_name }}</div>
-    <div class="text-sm text-slate-500">{{ e.employee_id }} · {{ e.role }} · {{ e.grade }}</div>
-  </a>
-  {% endfor %}
-</div>
+<h1 class="text-2xl font-bold mb-4">Career Quest</h1>
+<p class="text-slate-600 mb-6">
+  Упрощённая имитация входа: сотрудник вводит свой ID и видит только свой профиль —
+  публичного каталога чужих профилей нет (см. README, «Ограничения» и ТЗ п.9
+  «Приватность»). HR получает отдельный вход с агрегированным видом.
+</p>
+<form method="get" action="/employee/redirect" class="flex gap-2 mb-3" onsubmit="location.href='/employee/'+document.getElementById('eid').value; return false;">
+  <input id="eid" name="employee_id" placeholder="Ваш ID, например E0028" class="border border-slate-300 rounded px-3 py-2 flex-1" required>
+  <button class="bg-slate-900 text-white px-4 py-2 rounded hover:bg-slate-700">Войти</button>
+</form>
+<p class="text-xs text-slate-400 mb-8">Демо для жюри: например E0028 (пример из самого ТЗ), E0001, E0100.</p>
+<a href="/hr" class="text-sm text-slate-600 underline">Войти как HR →</a>
 {% endblock %}

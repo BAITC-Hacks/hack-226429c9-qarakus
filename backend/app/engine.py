@@ -164,7 +164,19 @@ def recommend(store: DataStore, employee_id: str, top_n: int = 3) -> dict:
         "target_grade": target_grade,
         "gaps": gaps,
         "steps": steps,
+        "readiness_percent": readiness_percent(profile, gaps),
     }
+
+
+def readiness_percent(profile: dict | None, gaps: list[dict]) -> int:
+    """Доля требований целевого грейда, уже выполненных сотрудником, 0–100.
+    Простая, проверяемая метрика «насколько близко к следующему грейду» — использована
+    и в интерфейсе сотрудника (прогресс-бар), и в HR-обзоре (кто дальше всех/ближе всех)."""
+    if not profile or not profile.get("required_skills"):
+        return 100
+    total = len(profile["required_skills"])
+    unmet = len(gaps)
+    return round(100 * (total - unmet) / total)
 
 
 def hr_overview(store: DataStore) -> dict:
@@ -173,6 +185,7 @@ def hr_overview(store: DataStore) -> dict:
     skill_gap_count: dict[str, int] = {}
     skill_gap_sum: dict[str, float] = {}
     employees_without_step: list[str] = []
+    readiness_by_employee: dict[str, int] = {}
 
     for employee_id, emp in store.employees.items():
         result = recommend(store, employee_id)
@@ -181,6 +194,9 @@ def hr_overview(store: DataStore) -> dict:
             skill_gap_sum[gap["skill_id"]] = skill_gap_sum.get(gap["skill_id"], 0) + gap["gap"]
         if not result["steps"]:
             employees_without_step.append(employee_id)
+        readiness_by_employee[employee_id] = result["readiness_percent"]
+
+    lowest_readiness = sorted(readiness_by_employee.items(), key=lambda kv: kv[1])[:10]
 
     top_lagging_skills = sorted(
         (
@@ -207,4 +223,5 @@ def hr_overview(store: DataStore) -> dict:
         "employees_without_step": employees_without_step,
         "participation_by_event": participation,
         "total_employees": len(store.employees),
+        "lowest_readiness": lowest_readiness,
     }

@@ -12,7 +12,17 @@
 </div>
 
 <section class="mb-8">
-  <h2 class="text-lg font-semibold mb-2">Траектория к грейду {{ target_grade }}</h2>
+  <div class="flex items-center justify-between mb-1">
+    <h2 class="text-lg font-semibold">Готовность к грейду {{ target_grade }}</h2>
+    <span class="text-sm font-medium text-slate-700">{{ readiness_percent }}%</span>
+  </div>
+  <div class="w-full bg-slate-200 rounded-full h-2.5 mb-6">
+    <div class="bg-emerald-500 h-2.5 rounded-full" style="width: {{ readiness_percent }}%"></div>
+  </div>
+</section>
+
+<section class="mb-8">
+  <h2 class="text-lg font-semibold mb-2">Разрывы по навыкам</h2>
   {% if gaps %}
   <div class="bg-white border border-slate-200 rounded-lg divide-y divide-slate-100">
     {% for g in gaps %}

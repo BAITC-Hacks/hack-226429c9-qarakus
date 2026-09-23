@@ -35,10 +35,7 @@ def _skill_name(skill_id: str) -> str:
 
 @app.get("/")
 def index(request: Request):
-    employees = sorted(store.employees.values(), key=lambda e: e["employee_id"])
-    return templates.TemplateResponse(
-        "index.html", {"request": request, "employees": employees}
-    )
+    return templates.TemplateResponse("index.html", {"request": request})
 
 
 @app.get("/employee/{employee_id}")
@@ -73,6 +70,7 @@ def employee_page(request: Request, employee_id: str):
             "history": history,
             "skill_name": _skill_name,
             "events": store.events,
+            "readiness_percent": result["readiness_percent"],
         },
     )
 
@@ -101,12 +99,18 @@ def hr_page(request: Request, uploaded: int | None = None):
     overview = engine.hr_overview(store)
     lagging = [{**s, "skill_name": _skill_name(s["skill_id"])} for s in overview["top_lagging_skills"]]
     without_step = [store.employees[eid] for eid in overview["employees_without_step"] if eid in store.employees]
+    lowest_readiness = [
+        {**store.employees[eid], "readiness_percent": pct}
+        for eid, pct in overview["lowest_readiness"]
+        if eid in store.employees
+    ]
     return templates.TemplateResponse(
         "hr.html",
         {
             "request": request,
             "lagging": lagging,
             "without_step": without_step,
+            "lowest_readiness": lowest_readiness,
             "participation": overview["participation_by_event"],
             "events": store.events,
             "total_employees": overview["total_employees"],

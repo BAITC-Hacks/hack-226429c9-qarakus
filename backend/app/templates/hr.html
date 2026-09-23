@@ -33,6 +33,18 @@
 </section>
 
 <section class="mb-8">
+  <h2 class="text-lg font-semibold mb-2">Ниже всего готовность к следующему грейду</h2>
+  <div class="bg-white border border-slate-200 rounded-lg divide-y divide-slate-100">
+    {% for e in lowest_readiness %}
+    <a href="/employee/{{ e.employee_id }}" class="p-3 flex items-center justify-between hover:bg-slate-50">
+      <div>{{ e.full_name }} <span class="text-slate-400 text-sm">{{ e.employee_id }} · {{ e.role }} · {{ e.grade }}</span></div>
+      <div class="text-sm font-medium">{{ e.readiness_percent }}%</div>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="mb-8">
   <h2 class="text-lg font-semibold mb-2">Без рекомендованного шага ({{ without_step|length }})</h2>
   {% if without_step %}
   <div class="bg-white border border-slate-200 rounded-lg divide-y divide-slate-100">
