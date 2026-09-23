@@ -48,38 +48,132 @@ def _template_rationale(target_grade: str, step: dict, lang: str = "ru") -> str:
     return " | ".join(parts)
 
 
-def _llm_rationale(target_grade: str, step: dict, lang: str, employee_name: str) -> str | None:
+def _llm_agentic_rationale(target_grade: str, step: dict, lang: str, employee_name: str) -> str | None:
+    """Agentic-слой: модель сама решает, нужно ли ей узнать историю участия или
+    альтернативные мероприятия, и запрашивает это через function calling, вместо
+    того чтобы всё было заранее вписано в промпт. Числа она получает только из
+    инструментов/фактов, а не придумывает — если инструмент не вызван, соответствующая
+    деталь просто не попадёт в текст.
+
+    Полностью опционально: при отсутствии ключа, сетевой ошибке или любом сбое во время
+    цикла — возвращает None, и build_rationale() падает обратно на детерминированный
+    шаблон (см. модульный docstring)."""
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
         return None
     try:
+        import json as _j
+
         from openai import OpenAI
 
         client = OpenAI(api_key=api_key)
-        facts = _template_rationale(target_grade, step, lang="en")  # факты в нейтральном виде для модели
+        skills_by_id = {s["skill_id"]: s for s in step["skills"]}
+
+        tools = [
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_skill_history",
+                    "description": (
+                        "История участия сотрудника в активностях, развивающих указанный навык: "
+                        "сколько раз завершено/отклонено/пропущено."
+                    ),
+                    "parameters": {
+                        "type": "object",
+                        "properties": {"skill_id": {"type": "string", "enum": list(skills_by_id.keys())}},
+                        "required": ["skill_id"],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_alternative_events",
+                    "description": "Альтернативные мероприятия, развивающие тот же навык, если основное сотрудник уже избегал.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {"skill_id": {"type": "string", "enum": list(skills_by_id.keys())}},
+                        "required": ["skill_id"],
+                    },
+                },
+            },
+        ]
+
+        def call_tool(name: str, args: dict):
+            s = skills_by_id.get(args.get("skill_id"))
+            if not s:
+                return {"error": "unknown skill_id"}
+            if name == "get_skill_history":
+                return s["history"]
+            if name == "get_alternative_events":
+                return s.get("alternative_events", [])
+            return {"error": "unknown tool"}
+
         lang_name = {"ru": "русском", "kk": "казахском", "en": "английском"}.get(lang, "русском")
-        prompt = (
-            f"Ты помогаешь сотруднику {employee_name} понять, почему ему рекомендована активность "
-            f"«{step['event']['title']}». Вот проверенные факты (не выдумывай новых, не меняй числа): {facts}. "
-            f"Напиши 2-3 коротких предложения на {lang_name} языке, дружелюбно и конкретно объясняющих, "
-            f"зачем эта активность нужна именно этому человеку. Упомяни минимум два из фактов."
+        skills_summary = "; ".join(
+            f"{sid}: сейчас {s['current']}, требуется {s['required']} для {target_grade}"
+            + (" (критично для перехода)" if s["critical"] else "")
+            for sid, s in skills_by_id.items()
         )
-        resp = client.chat.completions.create(
-            model=os.environ.get("OPENAI_MODEL", "gpt-4o-mini"),
-            messages=[{"role": "user", "content": prompt}],
-            timeout=8,
-        )
-        text = resp.choices[0].message.content
-        return text.strip() if text else None
+        messages: list = [
+            {
+                "role": "system",
+                "content": (
+                    "Ты объясняешь сотруднику HR-платформы, почему ему рекомендована активность развития. "
+                    "У тебя есть инструменты, чтобы узнать историю участия сотрудника и альтернативные "
+                    "мероприятия — вызови их, если это сделает объяснение точнее и честнее. Никогда не "
+                    "придумывай цифры, которых нет в предоставленных фактах или в ответах инструментов."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Сотрудник: {employee_name}. Рекомендуемое мероприятие: «{step['event']['title']}». "
+                    f"Разрывы по навыкам: {skills_summary}. Напиши 2-3 коротких предложения на {lang_name} "
+                    f"языке, объясняющих рекомендацию конкретно для этого человека."
+                ),
+            },
+        ]
+
+        for _ in range(3):
+            resp = client.chat.completions.create(
+                model=os.environ.get("OPENAI_MODEL", "gpt-4o-mini"),
+                messages=messages,
+                tools=tools,
+                timeout=8,
+            )
+            msg = resp.choices[0].message
+            if msg.tool_calls:
+                messages.append(
+                    {
+                        "role": "assistant",
+                        "content": msg.content,
+                        "tool_calls": [
+                            {
+                                "id": tc.id,
+                                "type": "function",
+                                "function": {"name": tc.function.name, "arguments": tc.function.arguments},
+                            }
+                            for tc in msg.tool_calls
+                        ],
+                    }
+                )
+                for tc in msg.tool_calls:
+                    args = _j.loads(tc.function.arguments or "{}")
+                    result = call_tool(tc.function.name, args)
+                    messages.append({"role": "tool", "tool_call_id": tc.id, "content": _j.dumps(result, ensure_ascii=False)})
+                continue
+            return (msg.content or "").strip() or None
+        return None
     except Exception:
         return None
 
 
 def build_rationale(target_grade: str, step: dict, lang: str, employee_name: str) -> dict:
     template_text = _template_rationale(target_grade, step, lang)
-    llm_text = _llm_rationale(target_grade, step, lang, employee_name)
+    llm_text = _llm_agentic_rationale(target_grade, step, lang, employee_name)
     return {
         "text": llm_text or template_text,
-        "source": "llm" if llm_text else "template",
+        "source": "llm-agentic" if llm_text else "template",
         "facts": template_text,
     }

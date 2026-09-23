@@ -154,8 +154,18 @@ def recommend(store: DataStore, employee_id: str, top_n: int = 3) -> dict:
 
         candidates.sort(key=sort_key)
         best = candidates[0]
+        alternatives = [
+            {"event_id": c["event_id"], "title": c["title"]} for c in candidates[1:3] if c["event_id"] != best["event_id"]
+        ]
         entry = chosen.setdefault(best["event_id"], {"event": best, "skills": []})
-        entry["skills"].append({**gap, "history": history, "was_avoided_before": best["event_id"] in avoided_events})
+        entry["skills"].append(
+            {
+                **gap,
+                "history": history,
+                "was_avoided_before": best["event_id"] in avoided_events,
+                "alternative_events": alternatives,
+            }
+        )
 
     steps = list(chosen.values())[:top_n]
     return {

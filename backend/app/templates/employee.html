@@ -56,7 +56,7 @@
         </form>
       </div>
       <p class="text-sm text-slate-700 mt-3">{{ step.rationale.text }}</p>
-      <p class="text-xs text-slate-400 mt-1">источник обоснования: {{ 'LLM (обогащено)' if step.rationale.source == 'llm' else 'детерминированный шаблон' }}</p>
+      <p class="text-xs text-slate-400 mt-1">источник обоснования: {{ 'LLM-агент (с function calling)' if step.rationale.source == 'llm-agentic' else 'детерминированный шаблон' }}</p>
     </div>
     {% endfor %}
   </div>
