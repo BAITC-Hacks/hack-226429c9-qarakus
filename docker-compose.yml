@@ -1,0 +1,11 @@
+services:
+  career-quest:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
+    # .env-файл НЕ обязателен для запуска — приложение полностью работает без
+    # OPENAI_API_KEY (см. backend/app/explain.py). Если .env есть в этой папке,
+    # docker compose подставит переменные из него автоматически.

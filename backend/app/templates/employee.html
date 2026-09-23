@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}{{ emp.full_name }} — Career Quest{% endblock %}
+{% block content %}
+<div class="mb-6">
+  <h1 class="text-2xl font-bold">{{ emp.full_name }}</h1>
+  <div class="text-slate-600">{{ emp.employee_id }} · {{ emp.role }} · грейд {{ emp.grade }} · стаж {{ emp.tenure_months }} мес.</div>
+  {% if emp.career_goal %}
+    <div class="text-sm text-slate-500 mt-1">Цель: {{ emp.career_goal.target_role }} / {{ emp.career_goal.target_grade }}</div>
+  {% else %}
+    <div class="text-sm text-slate-500 mt-1">Цель не задана — считаем следующий грейд в текущей роли</div>
+  {% endif %}
+</div>
+
+<section class="mb-8">
+  <h2 class="text-lg font-semibold mb-2">Траектория к грейду {{ target_grade }}</h2>
+  {% if gaps %}
+  <div class="bg-white border border-slate-200 rounded-lg divide-y divide-slate-100">
+    {% for g in gaps %}
+    <div class="p-3 flex items-center justify-between">
+      <div>
+        <span class="font-medium">{{ g.skill_name }}</span>
+        {% if g.critical %}<span class="ml-2 text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded">критично для перехода</span>{% endif %}
+      </div>
+      <div class="text-sm text-slate-500">{{ g.current }} → {{ g.required }} <span class="text-slate-400">(разрыв {{ g.gap }})</span></div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="text-slate-600">Все требования грейда {{ target_grade }} выполнены — рекомендаций по разрывам нет.</p>
+  {% endif %}
+</section>
+
+<section class="mb-8">
+  <h2 class="text-lg font-semibold mb-2">Рекомендованные следующие шаги</h2>
+  {% if steps %}
+  <div class="space-y-4">
+    {% for step in steps %}
+    <div class="bg-white border border-slate-200 rounded-lg p-4">
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <div class="font-medium">{{ step.event.title }}</div>
+          <div class="text-sm text-slate-500">{{ step.event.type }} · {{ step.event.format }} · {{ step.event.duration_hours }} ч</div>
+        </div>
+        <form method="post" action="/employee/{{ emp.employee_id }}/complete/{{ step.event.event_id }}">
+          <button class="bg-slate-900 text-white text-sm px-3 py-1.5 rounded hover:bg-slate-700">Отметить выполненным</button>
+        </form>
+      </div>
+      <p class="text-sm text-slate-700 mt-3">{{ step.rationale.text }}</p>
+      <p class="text-xs text-slate-400 mt-1">источник обоснования: {{ 'LLM (обогащено)' if step.rationale.source == 'llm' else 'детерминированный шаблон' }}</p>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="text-slate-600">Подходящих добровольных активностей под текущие разрывы не найдено.</p>
+  {% endif %}
+</section>
+
+<section>
+  <h2 class="text-lg font-semibold mb-2">История участия</h2>
+  <div class="bg-white border border-slate-200 rounded-lg overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-100 text-left">
+        <tr><th class="p-2">Дата</th><th class="p-2">Активность</th><th class="p-2">Статус</th></tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for r in history %}
+        <tr>
+          <td class="p-2">{{ r.date }}</td>
+          <td class="p-2">{{ events[r.event_id].title if r.event_id in events else r.event_id }}</td>
+          <td class="p-2">{{ r.status }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}
