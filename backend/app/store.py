@@ -101,7 +101,11 @@ class DataStore:
             for dev in event.get("develops_skills", []):
                 skill_id, gain, max_level = dev["skill_id"], dev["gain"], dev["max_level"]
                 current = emp["skills"].get(skill_id, 0)
-                emp["skills"][skill_id] = min(max_level, current + gain)
+                # Навык не должен ПОНИЖАТЬСЯ, даже если max_level этого конкретного
+                # мероприятия ниже текущего уровня сотрудника (он мог быть достигнут
+                # через другую активность/грейд). max(...) — явная защита от регресса,
+                # min(...) — правило датасета «не выше max_level» для самого прироста.
+                emp["skills"][skill_id] = max(current, min(max_level, current + gain))
 
         return record
 

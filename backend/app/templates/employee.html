@@ -1,6 +1,14 @@
 {% extends "base.html" %}
 {% block title %}{{ emp.full_name }} — Career Quest{% endblock %}
 {% block content %}
+{% if changed %}
+<div class="mb-6 bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+  <p class="text-sm font-medium text-emerald-800 mb-1">{{ t('changed_banner_title') }}</p>
+  <ul class="text-sm text-emerald-700 list-disc list-inside">
+    {% for c in changed %}<li>{{ c.skill_name }}: {{ c.before }} → {{ c.after }}</li>{% endfor %}
+  </ul>
+</div>
+{% endif %}
 <div class="mb-6">
   <h1 class="text-2xl font-bold">{{ emp.full_name }}</h1>
   <div class="text-slate-600">{{ emp.employee_id }} · {{ emp.role }} · {{ t('grade_label') }} {{ emp.grade }} · {{ t('tenure') }} {{ emp.tenure_months }} {{ t('months') }}</div>

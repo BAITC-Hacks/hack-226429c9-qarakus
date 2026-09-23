@@ -154,6 +154,22 @@ def test_readiness_percent_matches_gap_count():
     assert engine.readiness_percent(None, []) == 100
 
 
+def test_skill_never_decreases_even_if_event_max_level_is_lower():
+    """Регрессия: если у сотрудника навык уже выше max_level конкретного мероприятия
+    (достигнут через другую активность/грейд), выполнение этого мероприятия не должно
+    ПОНИЖАТЬ навык — только не повышать выше собственного max_level."""
+    store = make_store()
+    employee_id = "E0001"
+    emp = store.employees[employee_id]
+    event = next(e for e in store.events.values() if e["develops_skills"] and not e["mandatory"])
+    dev = event["develops_skills"][0]
+    emp["skills"][dev["skill_id"]] = dev["max_level"] + 5  # уже заметно выше max_level этого события
+
+    store.complete_activity(employee_id, event["event_id"])
+
+    assert emp["skills"][dev["skill_id"]] == dev["max_level"] + 5, "навык не должен понижаться"
+
+
 def test_next_grade_respects_order():
     store = make_store()
     assert engine.next_grade(store.role_profiles, "Backend Engineer", "Junior") == "Middle"

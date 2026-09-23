@@ -115,9 +115,23 @@ def employee_page(request: Request, employee_id: str):
     result = engine.recommend(store, employee_id)
     history = sorted(store.history_for_employee(employee_id), key=lambda r: r["date"], reverse=True)
 
+    changed_raw = request.query_params.get("changed", "")
+    changed = []
+    for part in changed_raw.split(","):
+        if not part:
+            continue
+        sid, before_v, after_v = part.split(":")
+        changed.append({"skill_name": _skill_name(sid), "before": int(before_v), "after": int(after_v)})
+
+    # Общий дедлайн на ВСЕ шаги этой страницы: ТЗ ограничивает AI-рекомендацию
+    # 10 секундами целиком, а шагов может быть до трёх (см. explain.py).
+    import time as _time
+
+    deadline = _time.monotonic() + 8.0
+
     steps_view = []
     for step in result["steps"]:
-        rationale = _rationale_for(emp, result["target_grade"], step)
+        rationale = _rationale_for(emp, result["target_grade"], step, deadline)
         steps_view.append(
             {
                 "event": step["event"],
@@ -140,22 +154,37 @@ def employee_page(request: Request, employee_id: str):
             "skill_name": _skill_name,
             "events": store.events,
             "readiness_percent": result["readiness_percent"],
+            "changed": changed,
         },
     )
 
 
-def _rationale_for(emp: dict, target_grade: str, step: dict) -> dict:
+def _rationale_for(emp: dict, target_grade: str, step: dict, deadline: float | None = None) -> dict:
     from .explain import build_rationale
 
-    return build_rationale(target_grade, step, emp.get("preferred_language", "ru"), emp.get("full_name", emp["employee_id"]))
+    return build_rationale(
+        target_grade, step, emp.get("preferred_language", "ru"), emp.get("full_name", emp["employee_id"]), deadline=deadline
+    )
 
 
 @app.post("/employee/{employee_id}/complete/{event_id}")
 def complete_activity(employee_id: str, event_id: str):
     if employee_id not in store.employees or event_id not in store.events:
         raise HTTPException(status_code=404, detail="Сотрудник или активность не найдены")
+
+    # Explainability (ТЗ): «видно... как рассчитано продвижение» — снимаем срез навыков
+    # ДО применения gain, чтобы после показать явное «было → стало», а не просто новые
+    # цифры без объяснения, что именно изменилось.
+    event = store.events[event_id]
+    before = {d["skill_id"]: store.employees[employee_id]["skills"].get(d["skill_id"], 0) for d in event.get("develops_skills", [])}
     store.complete_activity(employee_id, event_id)
-    return RedirectResponse(url=f"/employee/{employee_id}", status_code=303)
+    after = {sid: store.employees[employee_id]["skills"].get(sid, 0) for sid in before}
+    changed = ",".join(f"{sid}:{before[sid]}:{after[sid]}" for sid in before if after[sid] != before[sid])
+
+    url = f"/employee/{employee_id}"
+    if changed:
+        url += f"?changed={changed}"
+    return RedirectResponse(url=url, status_code=303)
 
 
 # ---------------------------------------------------------------------------

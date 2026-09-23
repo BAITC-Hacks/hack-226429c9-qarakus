@@ -48,19 +48,33 @@ def _template_rationale(target_grade: str, step: dict, lang: str = "ru") -> str:
     return " | ".join(parts)
 
 
-def _llm_agentic_rationale(target_grade: str, step: dict, lang: str, employee_name: str) -> str | None:
+def _llm_agentic_rationale(
+    target_grade: str, step: dict, lang: str, employee_name: str, deadline: float | None = None
+) -> str | None:
     """Agentic-слой: модель сама решает, нужно ли ей узнать историю участия или
     альтернативные мероприятия, и запрашивает это через function calling, вместо
     того чтобы всё было заранее вписано в промпт. Числа она получает только из
     инструментов/фактов, а не придумывает — если инструмент не вызван, соответствующая
     деталь просто не попадёт в текст.
 
-    Полностью опционально: при отсутствии ключа, сетевой ошибке или любом сбое во время
-    цикла — возвращает None, и build_rationale() падает обратно на детерминированный
-    шаблон (см. модульный docstring)."""
+    Полностью опционально: при отсутствии ключа, сетевой ошибке, любом сбое или
+    превышении бюджета времени — возвращает None, и build_rationale() падает обратно
+    на детерминированный шаблон (см. модульный docstring).
+
+    Бюджет времени: ТЗ прямо ограничивает AI-рекомендацию 10 секундами — на весь ответ,
+    а не на один шаг, а шагов может быть до трёх. Поэтому `deadline` (абсолютное время
+    по `time.monotonic()`) — общий для ВСЕХ шагов одной рекомендации и передаётся сюда
+    вызывающим кодом (main.py); если не передан (например, в тестах) — берём свежий
+    бюджет 8с для этого единственного вызова. Как только бюджет исчерпан — отдаём
+    None, и build_rationale() падает в детерминированный шаблон."""
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
         return None
+    import time as _time
+
+    if deadline is None:
+        deadline = _time.monotonic() + 8.0
+
     try:
         import json as _j
 
@@ -136,11 +150,14 @@ def _llm_agentic_rationale(target_grade: str, step: dict, lang: str, employee_na
         ]
 
         for _ in range(3):
+            remaining = deadline - _time.monotonic()
+            if remaining <= 0.5:
+                return None  # бюджет времени исчерпан — падаем в детерминированный шаблон
             resp = client.chat.completions.create(
                 model=os.environ.get("OPENAI_MODEL", "gpt-4o-mini"),
                 messages=messages,
                 tools=tools,
-                timeout=8,
+                timeout=min(remaining, 5.0),
             )
             msg = resp.choices[0].message
             if msg.tool_calls:
@@ -169,9 +186,11 @@ def _llm_agentic_rationale(target_grade: str, step: dict, lang: str, employee_na
         return None
 
 
-def build_rationale(target_grade: str, step: dict, lang: str, employee_name: str) -> dict:
+def build_rationale(
+    target_grade: str, step: dict, lang: str, employee_name: str, deadline: float | None = None
+) -> dict:
     template_text = _template_rationale(target_grade, step, lang)
-    llm_text = _llm_agentic_rationale(target_grade, step, lang, employee_name)
+    llm_text = _llm_agentic_rationale(target_grade, step, lang, employee_name, deadline=deadline)
     return {
         "text": llm_text or template_text,
         "source": "llm-agentic" if llm_text else "template",

@@ -73,6 +73,11 @@ _T: dict[str, dict[str, str]] = {
         "en": "No matching voluntary activities found for the current gaps.",
     },
     "complete_btn": {"ru": "Отметить выполненным", "kk": "Орындалды деп белгілеу", "en": "Mark as completed"},
+    "changed_banner_title": {
+        "ru": "Активность отмечена выполненной. Что изменилось:",
+        "kk": "Іс-шара орындалды деп белгіленді. Не өзгерді:",
+        "en": "Activity marked as completed. What changed:",
+    },
     "rationale_source_llm": {
         "ru": "LLM-агент (с function calling)",
         "kk": "LLM-агент (function calling арқылы)",
