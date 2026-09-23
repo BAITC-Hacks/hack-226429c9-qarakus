@@ -1,6 +1,5 @@
 # Career Quest — AI-навигатор развития сотрудника
 
-[![CI](https://github.com/BAITC-Hacks/hack-226429c9-qarakus/actions/workflows/ci.yml/badge.svg)](https://github.com/BAITC-Hacks/hack-226429c9-qarakus/actions/workflows/ci.yml)
 ![Python 3.13](https://img.shields.io/badge/python-3.13-blue)
 ![Docker](https://img.shields.io/badge/run-docker%20compose%20up-2496ED?logo=docker&logoColor=white)
 
@@ -142,9 +141,11 @@ HackAlem AI, трек **Halyk Bank**, кейс 1 «Career Quest». Платфо�
 - **Хранение**: в памяти процесса (см. «Ограничения»).
 - **Качество кода**: `pytest` (13 тестов, включая ловушку из ТЗ и бюджет времени
   AI-рекомендации), `ruff` (стиль + типичные баги — забытая привязка переменной в
-  замыкании, проглоченный контекст исключения). CI на GitHub Actions: линт, тесты,
-  и отдельно — `docker compose build && up` с проверкой `/health`, то есть
-  воспроизводимость проверяется автоматически, а не только на словах в README.
+  замыкании, проглоченный контекст исключения). Workflow для GitHub Actions —
+  `.github/workflows/ci.yml` (линт + тесты + `docker compose build && up` с
+  проверкой `/health`) — настроен и проверен эквивалентно локально; сами Actions
+  на раннерах организации хакатона не выделяются (похоже на лимит биллинга на
+  уровне `BAITC-Hacks`, не связано с кодом репозитория).
 
 ## Архитектура
 
