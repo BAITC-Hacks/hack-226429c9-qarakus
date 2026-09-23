@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import csv
+import datetime
 import io
 import json as _json
 from pathlib import Path
@@ -19,7 +20,7 @@ from fastapi.templating import Jinja2Templates
 
 from . import engine
 from .i18n import resolve_lang, translate
-from .store import store
+from .store import InvalidCompletionError, store
 
 
 def _lang_for_request(request: Request, *extra_candidates: str | None) -> str:
@@ -42,37 +43,74 @@ async def _parse_upload(
     """Общий разбор загрузки для /hr/upload и /api/data/upload. Валидирует формат
     заранее и поднимает HTTPException с понятным сообщением вместо падения с 500 —
     жюри может загрузить не совсем тот файл, и это не должно ронять приложение."""
-    added_employees = 0
-    added_history = 0
+    employees = []
+    history = []
 
     if employees_file is not None and employees_file.filename:
         try:
             raw = _json.loads((await employees_file.read()).decode("utf-8"))
         except (UnicodeDecodeError, _json.JSONDecodeError) as exc:
             raise HTTPException(status_code=400, detail=f"Файл профилей — не валидный JSON: {exc}") from exc
-        rows = raw["employees"] if isinstance(raw, dict) and "employees" in raw else raw
-        if not isinstance(rows, list) or not all(isinstance(r, dict) and "employee_id" in r for r in rows):
+        employees = raw["employees"] if isinstance(raw, dict) and "employees" in raw else raw
+        if not isinstance(employees, list):
             raise HTTPException(
                 status_code=400,
-                detail="Файл профилей должен быть списком объектов employees.json с полем employee_id у каждого",
+                detail="Файл профилей должен содержать список employees.json",
             )
-        added_employees = store.add_employees(rows)
+        required_employee_fields = {"employee_id", "full_name", "role", "grade", "skills"}
+        for index, employee in enumerate(employees, 1):
+            if not isinstance(employee, dict) or not required_employee_fields.issubset(employee):
+                raise HTTPException(
+                    status_code=400, detail=f"Профиль {index}: нужны поля {sorted(required_employee_fields)}"
+                )
+            text_fields = required_employee_fields - {"skills"}
+            if not all(isinstance(employee[field], str) and employee[field] for field in text_fields):
+                raise HTTPException(
+                    status_code=400, detail=f"Профиль {index}: ID, имя, роль и грейд должны быть строками"
+                )
+            skills = employee["skills"]
+            if not isinstance(skills, dict) or any(
+                skill_id not in store.skills_catalog or type(level) is not int or not 0 <= level <= 5
+                for skill_id, level in skills.items()
+            ):
+                raise HTTPException(
+                    status_code=400, detail=f"Профиль {index}: навыки должны содержать известные ID и уровни 0–5"
+                )
+            goal = employee.get("career_goal")
+            if goal is not None and (
+                not isinstance(goal, dict)
+                or not all(isinstance(goal.get(field), str) for field in ("target_role", "target_grade"))
+            ):
+                raise HTTPException(status_code=400, detail=f"Профиль {index}: неверный career_goal")
 
     if history_file is not None and history_file.filename:
         try:
             text = (await history_file.read()).decode("utf-8")
-            rows = list(csv.DictReader(io.StringIO(text)))
+            reader = csv.DictReader(io.StringIO(text))
+            required_columns = {"employee_id", "event_id", "date", "status"}
+            if not reader.fieldnames or not required_columns.issubset(reader.fieldnames):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"В CSV должны быть колонки {sorted(required_columns)} (как в activity_history.csv)",
+                )
+            history = list(reader)
         except UnicodeDecodeError as exc:
             raise HTTPException(status_code=400, detail=f"Файл истории — не валидный CSV: {exc}") from exc
-        required_columns = {"employee_id", "event_id", "status"}
-        if rows and not required_columns.issubset(rows[0].keys()):
-            raise HTTPException(
-                status_code=400,
-                detail=f"В CSV должны быть колонки {sorted(required_columns)} (как в activity_history.csv)",
-            )
-        added_history = store.add_history(rows)
+        known_employees = store.employees.keys() | {employee["employee_id"] for employee in employees}
+        valid_statuses = {"completed", "declined", "no_show", "dropped", "in_progress", "overdue"}
+        for index, row in enumerate(history, 2):
+            try:
+                datetime.date.fromisoformat(row["date"])
+            except (TypeError, ValueError):
+                raise HTTPException(status_code=400, detail=f"Строка CSV {index}: неверная дата") from None
+            if row["employee_id"] not in known_employees or row["event_id"] not in store.events:
+                raise HTTPException(
+                    status_code=400, detail=f"Строка CSV {index}: неизвестный сотрудник или мероприятие"
+                )
+            if row["status"] not in valid_statuses:
+                raise HTTPException(status_code=400, detail=f"Строка CSV {index}: неизвестный статус")
 
-    return added_employees, added_history
+    return store.import_data(employees, history)
 
 app = FastAPI(title="Career Quest", description="AI-навигатор развития сотрудника (HackAlem AI, трек Halyk Bank)")
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
@@ -132,11 +170,15 @@ def employee_page(request: Request, employee_id: str):
 
     steps_view = []
     for step in result["steps"]:
-        rationale = _rationale_for(emp, result["target_grade"], step, deadline)
+        named_step = {
+            **step,
+            "skills": [{**skill, "skill_name": _skill_name(skill["skill_id"])} for skill in step["skills"]],
+        }
+        rationale = _rationale_for(emp, result["target_grade"], named_step, deadline)
         steps_view.append(
             {
                 "event": step["event"],
-                "skills": [{**s, "skill_name": _skill_name(s["skill_id"])} for s in step["skills"]],
+                "skills": named_step["skills"],
                 "rationale": rationale,
             }
         )
@@ -179,7 +221,10 @@ def complete_activity(employee_id: str, event_id: str):
     event = store.events[event_id]
     current_skills = store.employees[employee_id]["skills"]
     before = {d["skill_id"]: current_skills.get(d["skill_id"], 0) for d in event.get("develops_skills", [])}
-    store.complete_activity(employee_id, event_id)
+    try:
+        store.complete_activity(employee_id, event_id)
+    except InvalidCompletionError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     after = {sid: store.employees[employee_id]["skills"].get(sid, 0) for sid in before}
     changed = ",".join(f"{sid}:{before[sid]}:{after[sid]}" for sid in before if after[sid] != before[sid])
 
@@ -245,14 +290,6 @@ async def hr_upload(
 # ---------------------------------------------------------------------------
 
 
-@app.get("/api/employees")
-def api_employees():
-    return [
-        {"employee_id": e["employee_id"], "full_name": e["full_name"], "role": e["role"], "grade": e["grade"]}
-        for e in sorted(store.employees.values(), key=lambda e: e["employee_id"])
-    ]
-
-
 @app.get("/api/employees/{employee_id}")
 def api_employee(employee_id: str):
     if employee_id not in store.employees:
@@ -266,6 +303,8 @@ def api_complete(employee_id: str, event_id: str):
         record = store.complete_activity(employee_id, event_id)
     except KeyError:
         raise HTTPException(status_code=404, detail="not found") from None
+    except InvalidCompletionError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"record": record, "profile": engine.recommend(store, employee_id)}
 
 

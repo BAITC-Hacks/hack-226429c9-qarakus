@@ -38,7 +38,7 @@ def _template_rationale(target_grade: str, step: dict, lang: str = "ru") -> str:
     for s in step["skills"]:
         hist = s["history"]
         avoided = hist["declined"] + hist["no_show"] + hist["dropped"]
-        bit = f"{s['skill_id']}: {labels['current']} {s['current']}, {labels['required']} {s['required']} ({target_grade})"
+        bit = f"{s.get('skill_name', s['skill_id'])}: {labels['current']} {s['current']}, {labels['required']} {s['required']} ({target_grade})"
         # Критичность называем ЯВНО в обоих случаях (а не молчим, когда non-critical) —
         # иначе объяснение неявно недосчитывает до трёх факторов ТЗ, если конкретно
         # у этого шага критичность=False (см. review, п.2).
@@ -130,7 +130,7 @@ def _llm_agentic_rationale(
 
         lang_name = {"ru": "русском", "kk": "казахском", "en": "английском"}.get(lang, "русском")
         skills_summary = "; ".join(
-            f"{sid}: сейчас {s['current']}, требуется {s['required']} для {target_grade}"
+            f"{s.get('skill_name', sid)} ({sid}): сейчас {s['current']}, требуется {s['required']} для {target_grade}"
             + (" (критично для перехода)" if s["critical"] else " (не критично, но входит в требования)")
             for sid, s in skills_by_id.items()
         )

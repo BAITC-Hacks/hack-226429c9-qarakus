@@ -22,6 +22,10 @@ SEED_DIR = Path(__file__).parent / "data" / "seed"
 GRADE_ORDER = ["Junior", "Middle", "Senior", "Lead"]
 
 
+class InvalidCompletionError(ValueError):
+    """Активность не подходит сотруднику или не может быть отмечена повторно."""
+
+
 class DataStore:
     def __init__(self) -> None:
         self._lock = threading.Lock()
@@ -71,17 +75,36 @@ class DataStore:
                 self.history.append(r)
         return len(rows)
 
+    def import_data(self, employees: list[dict], history: list[dict]) -> tuple[int, int]:
+        """Применяет проверенные профили и историю одной операцией."""
+        with self._lock:
+            for employee in employees:
+                self.employees[employee["employee_id"]] = employee
+            for row in history:
+                record = dict(row)
+                if not record.get("record_id"):
+                    record["record_id"] = f"UPLOAD{self._next_record_id:06d}"
+                self._next_record_id += 1
+                self.history.append(record)
+        return len(employees), len(history)
+
     def complete_activity(self, employee_id: str, event_id: str) -> dict:
         """Отмечает активность выполненной: пишет запись в историю и поднимает навыки
-        по правилу датасета (gain, не выше max_level)."""
+        по правилу датасета (gain, не выше max_level).
+
+        Проверяет те же ограничения доступности, что и движок рекомендаций."""
         import datetime
+
+        from .engine import event_is_available, target_for_employee
 
         emp = self.employees.get(employee_id)
         event = self.events.get(event_id)
         if emp is None or event is None:
             raise KeyError("employee or event not found")
-
         with self._lock:
+            target_role, target_grade, _ = target_for_employee(self, emp)
+            if not event_is_available(self, emp, event, target_role, target_grade):
+                raise InvalidCompletionError(f"{event_id} недоступно для {employee_id} или уже выполнено")
             record = {
                 "record_id": f"RUNTIME{self._next_record_id:06d}",
                 "employee_id": employee_id,

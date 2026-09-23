@@ -1,9 +1,8 @@
 """Движок рекомендаций Career Quest.
 
-Полностью детерминированный: ранжирует разрывы по навыкам с учётом (1) требований
-следующего грейда, (2) критичности навыка для перехода (role_profiles.critical_skills),
-(3) истории участия сотрудника (отказы/пропуски/завершения), затем подбирает под
-каждый разрыв конкретную добровольную активность.
+Полностью детерминированный: ранжирует разрывы по требованиям следующего грейда
+и критичности навыка (role_profiles.critical_skills), затем с учётом истории
+участия подбирает конкретную добровольную активность под каждый разрыв.
 
 Почему детерминированный, а не «спросить LLM»: жюри на защите загружает три
 одинаковых для всех команд проверочных профиля, специально составленных так, чтобы
@@ -96,32 +95,33 @@ def history_stats_for_skill(store: DataStore, employee_id: str, skill_id: str) -
     return stats
 
 
+def event_is_available(
+    store: DataStore, emp: dict, event: dict, target_role: str, target_grade: str
+) -> bool:
+    if event.get("mandatory"):
+        return False
+    if event["event_id"] in store.completed_event_ids(emp["employee_id"]) and event["event_id"] != "EV_036":
+        return False
+    roles_ok = emp["role"] in event.get("target_roles", []) or target_role in event.get("target_roles", [])
+    grades_ok = emp["grade"] in event.get("target_grades", []) or target_grade in event.get("target_grades", [])
+    return roles_ok and grades_ok and all(
+        emp["skills"].get(skill_id, 0) >= level
+        for skill_id, level in event.get("prerequisites", {}).items()
+    )
+
+
 def candidate_events_for_skill(
     store: DataStore, emp: dict, skill_id: str, target_role: str, target_grade: str
 ) -> list[dict]:
     """Добровольные активности, которые: развивают нужный навык, доступны роли/грейду
     сотрудника (текущему или целевому), не были уже завершены (кроме клуба EV_036,
     он повторяемый по правилам датасета), и для которых выполнены prerequisites."""
-    already_completed = store.completed_event_ids(emp["employee_id"])
     out = []
-    for event_id, event in store.events.items():
-        if event.get("mandatory"):
-            continue
-        if event_id in already_completed and event_id != "EV_036":
-            continue
+    for event in store.events.values():
         if not any(d["skill_id"] == skill_id for d in event.get("develops_skills", [])):
             continue
-        roles_ok = emp["role"] in event.get("target_roles", []) or target_role in event.get("target_roles", [])
-        grades_ok = emp["grade"] in event.get("target_grades", []) or target_grade in event.get("target_grades", [])
-        if not (roles_ok and grades_ok):
-            continue
-        prereqs_ok = all(
-            emp["skills"].get(pre_skill, 0) >= pre_level
-            for pre_skill, pre_level in event.get("prerequisites", {}).items()
-        )
-        if not prereqs_ok:
-            continue
-        out.append(event)
+        if event_is_available(store, emp, event, target_role, target_grade):
+            out.append(event)
     return out
 
 

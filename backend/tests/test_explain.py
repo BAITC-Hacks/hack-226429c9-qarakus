@@ -39,6 +39,14 @@ def test_no_api_key_falls_back_to_template(monkeypatch):
     assert "SK_X" in result["text"]
 
 
+def test_template_uses_skill_name_when_available(monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    step = {**_STEP, "skills": [{**_STEP["skills"][0], "skill_name": "System Design"}]}
+    result = build_rationale("Senior", step, "ru", "Тест Тестов")
+    assert "System Design" in result["text"]
+    assert "SK_X" not in result["text"]
+
+
 def test_expired_deadline_falls_back_instantly(monkeypatch):
     """Даже с (гипотетически) валидным ключом — если общий бюджет времени уже
     исчерпан, вызов LLM не делается вообще, и мы мгновенно получаем шаблон."""

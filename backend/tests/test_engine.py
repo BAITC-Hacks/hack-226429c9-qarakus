@@ -11,10 +11,12 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app import engine
-from app.store import DataStore
+from app.store import DataStore, InvalidCompletionError
 
 
 def make_store() -> DataStore:
@@ -136,7 +138,12 @@ def test_skill_gain_capped_at_max_level():
     store = make_store()
     employee_id = "E0001"
     emp = store.employees[employee_id]
-    event = next(e for e in store.events.values() if e["develops_skills"] and not e["mandatory"])
+    event = next(
+        e for e in store.events.values()
+        if e["develops_skills"] and engine.event_is_available(
+            store, emp, e, *engine.target_for_employee(store, emp)[:2]
+        )
+    )
     dev = event["develops_skills"][0]
     emp["skills"][dev["skill_id"]] = dev["max_level"] - 1  # почти на максимуме
 
@@ -163,13 +170,42 @@ def test_skill_never_decreases_even_if_event_max_level_is_lower():
     store = make_store()
     employee_id = "E0001"
     emp = store.employees[employee_id]
-    event = next(e for e in store.events.values() if e["develops_skills"] and not e["mandatory"])
+    event = next(
+        e for e in store.events.values()
+        if e["develops_skills"] and engine.event_is_available(
+            store, emp, e, *engine.target_for_employee(store, emp)[:2]
+        )
+    )
     dev = event["develops_skills"][0]
     emp["skills"][dev["skill_id"]] = dev["max_level"] + 5  # уже заметно выше max_level этого события
 
     store.complete_activity(employee_id, event["event_id"])
 
     assert emp["skills"][dev["skill_id"]] == dev["max_level"] + 5, "навык не должен понижаться"
+
+
+def test_completion_rejects_mandatory_duplicate_and_unavailable_events():
+    store = make_store()
+    employee_id = "E0028"
+    mandatory = next(event for event in store.events.values() if event["mandatory"])
+    with pytest.raises(InvalidCompletionError):
+        store.complete_activity(employee_id, mandatory["event_id"])
+
+    recommended = engine.recommend(store, employee_id)["steps"][0]["event"]["event_id"]
+    store.complete_activity(employee_id, recommended)
+    if recommended != "EV_036":
+        with pytest.raises(InvalidCompletionError):
+            store.complete_activity(employee_id, recommended)
+
+    employee = store.employees[employee_id]
+    target_role, target_grade, _ = engine.target_for_employee(store, employee)
+    unavailable = next(
+        event for event in store.events.values()
+        if not event["mandatory"] and event["event_id"] != recommended
+        and not engine.event_is_available(store, employee, event, target_role, target_grade)
+    )
+    with pytest.raises(InvalidCompletionError):
+        store.complete_activity(employee_id, unavailable["event_id"])
 
 
 def test_engagement_risk_flags_high_avoidance_and_low_readiness():
