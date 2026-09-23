@@ -1,0 +1,5 @@
+record_id,employee_id,event_id,date,status
+DEMO_R1,DEMO_TRAP,EV_036,2026-06-01,declined
+DEMO_R2,DEMO_TRAP,EV_036,2026-07-01,no_show
+DEMO_R3,DEMO_TRAP,EV_036,2026-08-01,declined
+DEMO_R4,DEMO_HISTORY,EV_006,2026-09-15,completed

@@ -75,7 +75,7 @@ def skill_gaps(emp: dict, profile: dict | None) -> list[dict]:
                 "score": gap * weight,
             }
         )
-    gaps.sort(key=lambda g: g["score"], reverse=True)
+    gaps.sort(key=lambda gap: (-gap["score"], not gap["critical"], gap["skill_id"]))
     return gaps
 
 
@@ -118,11 +118,19 @@ def candidate_events_for_skill(
     он повторяемый по правилам датасета), и для которых выполнены prerequisites."""
     out = []
     for event in store.events.values():
-        if not any(d["skill_id"] == skill_id for d in event.get("develops_skills", [])):
+        if skill_gain(emp, event, skill_id) <= 0:
             continue
         if event_is_available(store, emp, event, target_role, target_grade):
             out.append(event)
     return out
+
+
+def skill_gain(emp: dict, event: dict, skill_id: str) -> int:
+    current = emp["skills"].get(skill_id, 0)
+    for development in event.get("develops_skills", []):
+        if development["skill_id"] == skill_id:
+            return max(0, min(development["max_level"], current + development["gain"]) - current)
+    return 0
 
 
 def recommend(store: DataStore, employee_id: str, top_n: int = 3) -> dict:
@@ -146,36 +154,46 @@ def recommend(store: DataStore, employee_id: str, top_n: int = 3) -> dict:
         candidates = candidate_events_for_skill(store, emp, skill_id, target_role, target_grade)
         if not candidates:
             continue
-        history = history_stats_for_skill(store, employee_id, skill_id)
-
         def sort_key(ev: dict, skill_id: str = skill_id) -> tuple:
             # skill_id захвачен как default-аргумент, а не через замыкание: иначе
             # при позднем связывании к моменту вызова sort() использовалось бы
             # значение skill_id из последней итерации внешнего цикла, а не из той,
             # для которой sort_key был создан (это здесь не проявлялось как баг,
             # так как sort() вызывается сразу же, но паттерн хрупкий — ruff B023).
-            gain = next((d["gain"] for d in ev["develops_skills"] if d["skill_id"] == skill_id), 0)
+            gain = skill_gain(emp, ev, skill_id)
             was_avoided = ev["event_id"] in avoided_events
-            return (was_avoided, -gain)
+            return (was_avoided, -gain, ev["event_id"])
 
         candidates.sort(key=sort_key)
         best = candidates[0]
-        alternatives = [
-            {"event_id": c["event_id"], "title": c["title"]}
-            for c in candidates[1:3]
-            if c["event_id"] != best["event_id"]
-        ]
-        entry = chosen.setdefault(best["event_id"], {"event": best, "skills": []})
-        entry["skills"].append(
-            {
-                **gap,
-                "history": history,
-                "was_avoided_before": best["event_id"] in avoided_events,
-                "alternative_events": alternatives,
-            }
-        )
+        chosen.setdefault(best["event_id"], {"event": best, "skills": []})
 
     steps = list(chosen.values())[:top_n]
+    for step in steps:
+        event = step["event"]
+        projected = {**emp, "skills": dict(emp["skills"])}
+        store.apply_skill_gain(projected["skills"], event)
+        for gap in gaps:
+            skill_id = gap["skill_id"]
+            gain = skill_gain(emp, event, skill_id)
+            if gain <= 0:
+                continue
+            alternatives = [
+                {"event_id": candidate["event_id"], "title": candidate["title"],
+                 "format": candidate["format"], "duration_hours": candidate["duration_hours"],
+                 "gain": skill_gain(emp, candidate, skill_id)}
+                for candidate in candidate_events_for_skill(store, emp, skill_id, target_role, target_grade)
+                if candidate["event_id"] != event["event_id"]
+            ]
+            step["skills"].append({
+                **gap,
+                "after": projected["skills"][skill_id],
+                "expected_gain": gain,
+                "history": history_stats_for_skill(store, employee_id, skill_id),
+                "was_avoided_before": event["event_id"] in avoided_events,
+                "alternative_events": alternatives,
+            })
+        step["projected_readiness_percent"] = readiness_percent(profile, skill_gaps(projected, profile))
     return {
         "employee_id": employee_id,
         "target_role": target_role,
@@ -222,7 +240,7 @@ def hr_overview(store: DataStore) -> dict:
         for gap in result["gaps"]:
             skill_gap_count[gap["skill_id"]] = skill_gap_count.get(gap["skill_id"], 0) + 1
             skill_gap_sum[gap["skill_id"]] = skill_gap_sum.get(gap["skill_id"], 0) + gap["gap"]
-        if not result["steps"]:
+        if result["gaps"] and not result["steps"]:
             employees_without_step.append(employee_id)
 
         readiness = result["readiness_percent"]
@@ -269,6 +287,7 @@ def hr_overview(store: DataStore) -> dict:
         "total_employees": len(store.employees),
         "lowest_readiness": lowest_readiness,
         "engagement_risk": risk_signals[:10],
+        "engagement_risk_count": len(risk_signals),
         "employees_unknown_data": employees_unknown_data,
     }
 

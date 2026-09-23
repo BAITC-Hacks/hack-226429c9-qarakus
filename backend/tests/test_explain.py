@@ -7,13 +7,26 @@
 
 from __future__ import annotations
 
+import asyncio
 import sys
 import time
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from app import explain
 from app.explain import build_rationale
+
+
+@pytest.fixture(autouse=True)
+def clear_ai_cache():
+    explain._cache.clear()
+    explain._request_times.clear()
+    explain._inflight.clear()
 
 _STEP = {
     "event": {"title": "Test Event", "event_id": "EV_TEST"},
@@ -73,3 +86,72 @@ def test_shared_deadline_bounds_total_time_for_three_steps(monkeypatch):
     elapsed = time.monotonic() - start
 
     assert elapsed < 2.0, f"3 шага с общим бюджетом не должны занимать заметное время, заняло {elapsed:.2f}с"
+
+
+def fake_client(monkeypatch, create):
+    client = AsyncMock()
+    client.__aenter__.return_value = client
+    client.chat.completions.create = create
+
+    def factory(**kwargs):
+        assert kwargs["max_retries"] == 0
+        return client
+
+    monkeypatch.setattr("openai.AsyncOpenAI", factory)
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    return client
+
+
+def test_slow_provider_is_cancelled_within_deadline(monkeypatch):
+    cancelled = []
+
+    async def slow_request(**kwargs):
+        try:
+            await asyncio.sleep(10)
+        finally:
+            cancelled.append(True)
+
+    fake_client(monkeypatch, slow_request)
+    started = time.monotonic()
+    answer = build_rationale("Senior", _STEP, "ru", "", deadline=started + 0.7)
+    assert answer["source"] == "template"
+    assert cancelled == [True]
+    assert time.monotonic() - started < 1.5
+
+
+def test_ai_text_without_history_tool_is_not_presented_as_grounded(monkeypatch):
+    message = SimpleNamespace(content="An unsupported claim", tool_calls=None)
+    create = AsyncMock(return_value=SimpleNamespace(choices=[SimpleNamespace(message=message, finish_reason="stop")]))
+    fake_client(monkeypatch, create)
+    answer = build_rationale("Senior", _STEP, "en", "")
+    assert answer["source"] == "template"
+
+
+def test_successful_tools_are_traced_cached_and_invalidated_by_changed_facts(monkeypatch):
+    from openai.types.chat import ChatCompletionMessage
+
+    tool_message = ChatCompletionMessage(role="assistant", content=None, tool_calls=[{
+        "id": "history_call", "type": "function",
+        "function": {"name": "get_skill_history", "arguments": '{"skill_id":"SK_X"}'},
+    }])
+    final_message = ChatCompletionMessage(role="assistant", content="Grounded explanation")
+
+    def response(message):
+        return SimpleNamespace(choices=[SimpleNamespace(message=message, finish_reason="stop")])
+
+    create = AsyncMock(side_effect=[response(tool_message), response(final_message)] * 2)
+    fake_client(monkeypatch, create)
+    answer = build_rationale("Senior", _STEP, "en", "")
+    assert answer["source"] == "llm-agentic"
+    assert answer["tool_calls"] == [{"tool": "get_skill_history", "skill_id": "SK_X"}]
+    assert create.call_count == 2
+    assert build_rationale("Senior", _STEP, "en", "")["text"] == answer["text"]
+    assert create.call_count == 2
+    changed = {**_STEP, "skills": [{**_STEP["skills"][0], "current": 2}]}
+    assert build_rationale("Senior", changed, "en", "")["source"] == "llm-agentic"
+    assert create.call_count == 4
+
+
+def test_page_template_does_not_call_provider_even_when_configured(monkeypatch):
+    fake_client(monkeypatch, AsyncMock(side_effect=AssertionError("unexpected API request")))
+    assert build_rationale("Senior", _STEP, "ru", "", use_llm=False)["source"] == "template"

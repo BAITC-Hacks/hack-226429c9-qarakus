@@ -11,7 +11,7 @@
 <section class="grid sm:grid-cols-3 gap-3 mb-8" aria-label="{{ t('hr_title') }}">
   <div class="surface p-5"><p class="text-sm text-slate-600 mb-3">{{ t('hr_total') }}</p><p class="metric-number">{{ total_employees }}</p></div>
   <div class="surface p-5"><p class="text-sm text-slate-600 mb-3">{{ t('hr_summary_without_step') }}</p><p class="metric-number">{{ without_step|length }}</p></div>
-  <div class="surface p-5"><p class="text-sm text-slate-600 mb-3">{{ t('hr_summary_risk') }}</p><p class="metric-number">{{ engagement_risk|length }}</p></div>
+  <div class="surface p-5"><p class="text-sm text-slate-600 mb-3">{{ t('hr_summary_risk') }}</p><p class="metric-number">{{ risk_count }}</p></div>
 </section>
 
 {% if uploaded is not none %}
@@ -40,6 +40,7 @@
     <summary class="cursor-pointer text-lg font-bold text-emerald-950">{{ t('hr_upload_open') }}</summary>
     <p class="text-sm text-slate-600 mt-3 mb-4">{{ t('hr_upload_desc') }}</p>
     <form method="post" action="/hr/upload" enctype="multipart/form-data" class="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-4">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <label class="text-sm font-semibold text-slate-700">{{ t('hr_upload_profiles_label') }}<input type="file" name="employees_file" accept=".json" class="block mt-2 max-w-full text-sm font-normal"></label>
       <label class="text-sm font-semibold text-slate-700">{{ t('hr_upload_history_label') }}<input type="file" name="history_file" accept=".csv" class="block mt-2 max-w-full text-sm font-normal"></label>
       <button class="action-button">{{ t('hr_upload_btn') }}</button>

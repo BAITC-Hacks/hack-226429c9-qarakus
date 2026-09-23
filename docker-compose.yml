@@ -6,6 +6,11 @@ services:
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
+      - DEMO_MODE=${DEMO_MODE:-true}
+      - HR_PASSWORD=${HR_PASSWORD:-}
+      - EMPLOYEE_PASSWORDS_JSON=${EMPLOYEE_PASSWORDS_JSON:-}
+      - SESSION_SECRET=${SESSION_SECRET:-}
+      - SECURE_COOKIES=${SECURE_COOKIES:-false}
     # .env-файл НЕ обязателен для запуска — приложение полностью работает без
     # OPENAI_API_KEY (см. backend/app/explain.py). Если .env есть в этой папке,
     # docker compose подставит переменные из него автоматически.

@@ -9,11 +9,13 @@
       <p class="text-slate-700 text-lg leading-relaxed mt-5 max-w-xl">{{ t('index_subtitle') }}</p>
       <div class="mt-8 max-w-xl">
         {% if error %}<p class="text-sm text-red-700 font-semibold mb-3" role="alert">{{ error }}</p>{% endif %}
-        <form method="get" action="/login" class="flex flex-col sm:flex-row gap-3">
-          <input name="employee_id" aria-label="{{ t('index_placeholder') }}" placeholder="{{ t('index_placeholder') }}" class="min-w-0 flex-1 rounded-xl border border-emerald-200 bg-white px-4 py-3" required>
+        <form method="post" action="/login?lang={{ lang }}" class="flex flex-col gap-3">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input name="employee_id" autocomplete="username" aria-label="{{ t('index_placeholder') }}" placeholder="E0028 / hr" value="{{ 'hr' if request.query_params.get('login') == 'hr' else '' }}" class="min-w-0 flex-1 rounded-xl border border-emerald-200 bg-white px-4 py-3" required>
+          <input name="password" type="password" autocomplete="current-password" aria-label="{{ t('login_password') }}" placeholder="{{ t('login_password') }}" class="min-w-0 flex-1 rounded-xl border border-emerald-200 bg-white px-4 py-3" required>
           <button class="action-button">{{ t('index_login_btn') }} →</button>
         </form>
-        <p class="text-xs text-slate-600 mt-3">{{ t('index_demo_hint') }}</p>
+        {% if demo_mode %}<p class="text-xs text-slate-600 mt-3">{{ t('demo_credentials') }}</p>{% endif %}
       </div>
     </div>
     <div class="surface p-5 sm:p-6" aria-hidden="true">
@@ -25,5 +27,5 @@
     </div>
   </div>
 </section>
-<p class="mt-6 text-center"><a href="/hr" class="soft-link text-sm">{{ t('index_hr_link') }}</a></p>
+<p class="mt-6 text-center"><a href="/?login=hr" class="soft-link text-sm">{{ t('index_hr_link') }}</a></p>
 {% endblock %}

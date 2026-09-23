@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="surface p-6">
+  <h1 class="text-2xl font-bold text-emerald-950">{{ t('request_error') }}</h1>
+  <p class="my-4 text-slate-700" role="alert">{{ detail }}</p>
+  <a class="soft-link" href="/">{{ t('go_back') }}</a>
+</section>
+{% endblock %}

@@ -27,7 +27,7 @@
     <div class="rounded-2xl bg-white/80 border border-emerald-100 p-5">
       <p class="text-sm font-semibold text-slate-600 mb-2">{{ t('readiness_title') }} {{ target_grade }}</p>
       {% if readiness_percent is none %}
-        <p class="text-sm text-amber-900">{{ t('not_enough_data', role=emp.role, grade=target_grade) }}</p>
+        <p class="text-sm text-amber-900">{{ t('not_enough_data', role=target_role, grade=target_grade) }}</p>
       {% else %}
         <p class="metric-number mb-3">{{ readiness_percent }}%</p>
         <div class="h-2.5 rounded-full bg-emerald-100 overflow-hidden" role="progressbar" aria-label="{{ t('readiness_title') }} {{ target_grade }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ readiness_percent }}">
@@ -85,14 +85,28 @@
         </div>
         {% endfor %}
       </div>
-      <details class="mt-4 text-sm">
+      <div class="mt-4 rounded-xl bg-slate-50 p-4 text-sm">
+        <p class="font-semibold text-emerald-950">{{ t('expected_result') }}</p>
+        {% for skill in step.skills %}<p class="mt-1">{{ skill.skill_name }}: {{ skill.current }} → {{ skill.after }}</p>{% endfor %}
+        <p class="mt-2 font-semibold">{{ t('readiness_title') }}: {{ readiness_percent }}% → {{ step.projected_readiness_percent }}%</p>
+        <p class="mt-1 text-xs text-slate-500">{{ t('expected_caption') }}</p>
+      </div>
+      <details class="mt-4 text-sm" data-ai-panel>
         <summary class="soft-link cursor-pointer">{{ t('rationale_details') }}</summary>
-        <p class="text-slate-700 mt-3 leading-relaxed">{{ step.rationale.text }}</p>
-        <p class="text-xs text-slate-500 mt-2">{{ t('rationale_source_label') }} {{ t('rationale_source_llm') if step.rationale.source == 'llm-agentic' else t('rationale_source_template') }}</p>
+        <p class="text-slate-700 mt-3 leading-relaxed" data-ai-text>{{ step.rationale.text }}</p>
+        {% if ai_enabled %}
+        <button class="secondary-button mt-3" type="button"
+                data-ai-explain="/api/employees/{{ emp.employee_id }}/explain/{{ step.event.event_id }}?lang={{ lang }}"
+                data-csrf="{{ csrf_token }}"
+                data-loading="{{ t('ai_loading') }}" data-done="{{ t('ai_done') }}" data-fallback="{{ t('ai_fallback') }}">{{ t('ai_explain') }}</button>
+        {% endif %}
+        <p class="text-xs text-slate-500 mt-2" data-ai-status role="status">{{ t('rationale_source_template') if ai_enabled else t('ai_no_key') }}</p>
+        <ul class="text-xs text-slate-500 mt-2 space-y-1" data-ai-trace></ul>
       </details>
       <div class="mt-5 pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <p class="text-sm text-slate-600">{{ t('complete_prompt') }}</p>
-        <form method="post" action="/employee/{{ emp.employee_id }}/complete/{{ step.event.event_id }}">
+        <form method="post" action="/employee/{{ emp.employee_id }}/complete/{{ step.event.event_id }}?lang={{ lang }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <button class="secondary-button w-full sm:w-auto">{{ t('complete_btn') }}</button>
         </form>
       </div>
@@ -129,9 +143,19 @@
     {% endif %}
   </div>
   {% else %}
-  <div class="surface p-5 text-slate-700">{{ t('not_enough_data', role=emp.role, grade=target_grade) if readiness_percent is none else t('gaps_none', grade=target_grade) }}</div>
+  <div class="surface p-5 text-slate-700">{{ t('not_enough_data', role=target_role, grade=target_grade) if readiness_percent is none else t('gaps_none', grade=target_grade) }}</div>
   {% endif %}
   {% if readiness_percent is not none %}<p class="text-xs text-slate-500 mt-3">{{ t('readiness_caption', grade=target_grade) }}</p>{% endif %}
+</section>
+
+<section class="mb-9">
+  <details class="surface p-5">
+    <summary class="soft-link cursor-pointer">{{ t('all_skills') }} ({{ all_skills|length }})</summary>
+    <p class="text-xs text-slate-500 mt-3">{{ t('skills_assessment_caption') }}</p>
+    <dl class="grid sm:grid-cols-2 gap-3 mt-4 text-sm">
+      {% for skill in all_skills %}<div class="flex items-center justify-between gap-3"><dt>{{ skill.name }}</dt><dd class="font-semibold">{{ skill.level }} / 5</dd></div>{% endfor %}
+    </dl>
+  </details>
 </section>
 
 <section>
