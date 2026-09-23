@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "scope": "Deterministic synthetic-data checks; not a business-impact or LLM-quality benchmark",
+  "scenario_date": "2026-10-01",
+  "external_api_calls": 0,
+  "seed": {
+    "employees": 200,
+    "events": 40,
+    "skills": 60,
+    "recommended_steps": 439,
+    "employees_with_steps": 179,
+    "first_step_previews_matching_completion": 179
+  },
+  "demonstration": {
+    "lowest_skill_baseline": "SK_PUBLIC_SPEAKING",
+    "selected_skill": "SK_SYSTEM_DESIGN",
+    "selected_event": "EV_006",
+    "readiness_before": 88,
+    "readiness_after": 94,
+    "unknown_role_readiness": null
+  },
+  "input_sha256": {
+    "backend/app/data/seed/employees.json": "bcf366fc3cecde04401200e7ea192ae5b008fa5de8b13b246ef98b1ba65945de",
+    "backend/app/data/seed/events.json": "e82f08dfd947b0f4bfda2d984d7e2adcdb1e2b96f239223cf4ad14dd05c1b14b",
+    "backend/app/data/seed/skills.json": "12d99e52b5ed7e95d9d817380b774145e53d65a2b6c961f3c57e9f09a021edee",
+    "backend/app/data/seed/activity_history.csv": "daaec3190b7d3d37f6a820a4c2926fd3a94a4e7dc22ea8f00b350a008d11993b",
+    "docs/demo/employees.json": "01df8302c86dcca4323a5d3539ce77ee4aa83884ee427b4249d3cac95c203399",
+    "docs/demo/activity_history.csv": "c072f13a1e58f438ceec0cf193a988afc5e379fe3c766e47b57e8b52c360f51b"
+  },
+  "checks": [
+    {
+      "name": "at_most_three_steps_per_employee",
+      "passed": true
+    },
+    {
+      "name": "all_recommended_events_voluntary",
+      "passed": true
+    },
+    {
+      "name": "all_recommended_skills_have_positive_gain",
+      "passed": true
+    },
+    {
+      "name": "all_recommended_events_available",
+      "passed": true
+    },
+    {
+      "name": "first_step_preview_matches_completion_without_skill_decrease",
+      "passed": true
+    },
+    {
+      "name": "duplicate_history_has_no_effect",
+      "passed": true
+    },
+    {
+      "name": "critical_skill_selected_over_lowest_skill_baseline",
+      "passed": true
+    },
+    {
+      "name": "demo_readiness_88_to_94",
+      "passed": true
+    },
+    {
+      "name": "post_review_history_closes_gap",
+      "passed": true
+    },
+    {
+      "name": "unknown_role_is_not_false_100_percent",
+      "passed": true
+    }
+  ],
+  "passed": true
+}
