@@ -24,9 +24,14 @@
   <h2 class="text-lg font-semibold mb-2">Чаще всего проседающие навыки</h2>
   <div class="bg-white border border-slate-200 rounded-lg divide-y divide-slate-100">
     {% for s in lagging %}
-    <div class="p-3 flex items-center justify-between">
-      <div class="font-medium">{{ s.skill_name }}</div>
-      <div class="text-sm text-slate-500">{{ s.employees_with_gap }} сотрудников с разрывом · средний разрыв {{ s.avg_gap }}</div>
+    <div class="p-3">
+      <div class="flex items-center justify-between mb-1">
+        <div class="font-medium">{{ s.skill_name }}</div>
+        <div class="text-sm text-slate-500">{{ s.employees_with_gap }} из {{ total_employees }} · средний разрыв {{ s.avg_gap }}</div>
+      </div>
+      <div class="w-full bg-slate-100 rounded-full h-1.5">
+        <div class="bg-amber-500 h-1.5 rounded-full" style="width: {{ (100 * s.employees_with_gap / total_employees)|round|int }}%"></div>
+      </div>
     </div>
     {% endfor %}
   </div>
