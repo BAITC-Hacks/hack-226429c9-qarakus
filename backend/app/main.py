@@ -19,6 +19,47 @@ from fastapi.templating import Jinja2Templates
 from . import engine
 from .store import store
 
+import json as _json
+
+
+async def _parse_upload(
+    employees_file: UploadFile | None, history_file: UploadFile | None
+) -> tuple[int, int]:
+    """Общий разбор загрузки для /hr/upload и /api/data/upload. Валидирует формат
+    заранее и поднимает HTTPException с понятным сообщением вместо падения с 500 —
+    жюри может загрузить не совсем тот файл, и это не должно ронять приложение."""
+    added_employees = 0
+    added_history = 0
+
+    if employees_file is not None and employees_file.filename:
+        try:
+            raw = _json.loads((await employees_file.read()).decode("utf-8"))
+        except (UnicodeDecodeError, _json.JSONDecodeError) as exc:
+            raise HTTPException(status_code=400, detail=f"Файл профилей — не валидный JSON: {exc}")
+        rows = raw["employees"] if isinstance(raw, dict) and "employees" in raw else raw
+        if not isinstance(rows, list) or not all(isinstance(r, dict) and "employee_id" in r for r in rows):
+            raise HTTPException(
+                status_code=400,
+                detail="Файл профилей должен быть списком объектов employees.json с полем employee_id у каждого",
+            )
+        added_employees = store.add_employees(rows)
+
+    if history_file is not None and history_file.filename:
+        try:
+            text = (await history_file.read()).decode("utf-8")
+            rows = list(csv.DictReader(io.StringIO(text)))
+        except UnicodeDecodeError as exc:
+            raise HTTPException(status_code=400, detail=f"Файл истории — не валидный CSV: {exc}")
+        required_columns = {"employee_id", "event_id", "status"}
+        if rows and not required_columns.issubset(rows[0].keys()):
+            raise HTTPException(
+                status_code=400,
+                detail=f"В CSV должны быть колонки {sorted(required_columns)} (как в activity_history.csv)",
+            )
+        added_history = store.add_history(rows)
+
+    return added_employees, added_history
+
 app = FastAPI(title="Career Quest", description="AI-навигатор развития сотрудника (HackAlem AI, трек Halyk Bank)")
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
@@ -35,14 +76,30 @@ def _skill_name(skill_id: str) -> str:
 
 @app.get("/")
 def index(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse("index.html", {"request": request, "error": None})
+
+
+@app.get("/login")
+def login(request: Request, employee_id: str):
+    employee_id = employee_id.strip().upper()
+    if employee_id not in store.employees:
+        return templates.TemplateResponse(
+            "index.html",
+            {"request": request, "error": f"Сотрудник «{employee_id}» не найден. Проверьте ID."},
+            status_code=404,
+        )
+    return RedirectResponse(url=f"/employee/{employee_id}", status_code=303)
 
 
 @app.get("/employee/{employee_id}")
 def employee_page(request: Request, employee_id: str):
     emp = store.employees.get(employee_id)
     if emp is None:
-        raise HTTPException(status_code=404, detail="Сотрудник не найден")
+        return templates.TemplateResponse(
+            "index.html",
+            {"request": request, "error": f"Сотрудник «{employee_id}» не найден. Проверьте ID."},
+            status_code=404,
+        )
 
     result = engine.recommend(store, employee_id)
     history = sorted(store.history_for_employee(employee_id), key=lambda r: r["date"], reverse=True)
@@ -126,18 +183,8 @@ async def hr_upload(
 ):
     """HTML-обёртка над /api/data/upload — форма на странице HR для проверочных
     профилей жюри (см. README, «Как проверить решение»)."""
-    import json
-
-    added = 0
-    if employees_file is not None and employees_file.filename:
-        raw = json.loads((await employees_file.read()).decode("utf-8"))
-        rows = raw["employees"] if isinstance(raw, dict) and "employees" in raw else raw
-        added += store.add_employees(rows)
-    if history_file is not None and history_file.filename:
-        text = (await history_file.read()).decode("utf-8")
-        rows = list(csv.DictReader(io.StringIO(text)))
-        added += store.add_history(rows)
-    return RedirectResponse(url=f"/hr?uploaded={added}", status_code=303)
+    added_e, added_h = await _parse_upload(employees_file, history_file)
+    return RedirectResponse(url=f"/hr?uploaded={added_e + added_h}", status_code=303)
 
 
 # ---------------------------------------------------------------------------
@@ -183,21 +230,7 @@ async def api_upload(
     профилей жюри (ТЗ, п.7: «на защите жюри загружает проверочные профили»).
     Принимает employees.json-подобный JSON (объект {"employees": [...]} или просто
     список) и/или activity_history.csv-подобный CSV с теми же колонками."""
-    import json
-
-    added_employees = 0
-    added_history = 0
-
-    if employees_file is not None:
-        raw = json.loads((await employees_file.read()).decode("utf-8"))
-        rows = raw["employees"] if isinstance(raw, dict) and "employees" in raw else raw
-        added_employees = store.add_employees(rows)
-
-    if history_file is not None:
-        text = (await history_file.read()).decode("utf-8")
-        rows = list(csv.DictReader(io.StringIO(text)))
-        added_history = store.add_history(rows)
-
+    added_employees, added_history = await _parse_upload(employees_file, history_file)
     return {"added_employees": added_employees, "added_history_records": added_history}
 
 

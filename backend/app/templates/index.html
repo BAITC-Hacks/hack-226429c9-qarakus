@@ -7,8 +7,9 @@
   публичного каталога чужих профилей нет (см. README, «Ограничения» и ТЗ п.9
   «Приватность»). HR получает отдельный вход с агрегированным видом.
 </p>
-<form method="get" action="/employee/redirect" class="flex gap-2 mb-3" onsubmit="location.href='/employee/'+document.getElementById('eid').value; return false;">
-  <input id="eid" name="employee_id" placeholder="Ваш ID, например E0028" class="border border-slate-300 rounded px-3 py-2 flex-1" required>
+{% if error %}<p class="text-sm text-red-600 mb-3">{{ error }}</p>{% endif %}
+<form method="get" action="/login" class="flex gap-2 mb-3">
+  <input name="employee_id" placeholder="Ваш ID, например E0028" class="border border-slate-300 rounded px-3 py-2 flex-1" required>
   <button class="bg-slate-900 text-white px-4 py-2 rounded hover:bg-slate-700">Войти</button>
 </form>
 <p class="text-xs text-slate-400 mb-8">Демо для жюри: например E0028 (пример из самого ТЗ), E0001, E0100.</p>
